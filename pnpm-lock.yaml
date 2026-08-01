@@ -350,6 +350,10 @@ importers:
         version: 5.9.3
 
   packages/domain:
+    dependencies:
+      luxon:
+        specifier: 3.7.2
+        version: 3.7.2
     devDependencies:
       '@hh/eslint-config':
         specifier: workspace:*
@@ -360,6 +364,9 @@ importers:
       '@types/jest':
         specifier: ^29.5.14
         version: 29.5.14
+      '@types/luxon':
+        specifier: 3.7.3
+        version: 3.7.3
       eslint:
         specifier: ^9.20.0
         version: 9.39.5(jiti@2.7.0)
@@ -417,6 +424,9 @@ importers:
       '@hh/domain':
         specifier: workspace:*
         version: link:../domain
+      '@hh/notifications':
+        specifier: workspace:*
+        version: link:../notifications
       '@hh/storage':
         specifier: workspace:*
         version: link:../storage
@@ -1785,6 +1795,9 @@ packages:
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
+
+  '@types/luxon@3.7.3':
+    resolution: {integrity: sha512-pE7BSbKHiojpl4v7iEzdfFLXXJaH5RPJxI3Wr4x3HU59l83PJfhcUx4mGPWq245+DCAENAzRF/+ZoYr2tJCe/g==}
 
   '@types/methods@1.1.4':
     resolution: {integrity: sha512-ymXWVrDiCxTBE3+RIrrP533E70eA+9qu7zdWoHuOmGujkYtzf4HQF96b8nwHLqhuf4ykX61IGRIB38CC6/sImQ==}
@@ -5477,6 +5490,8 @@ snapshots:
       pretty-format: 29.7.0
 
   '@types/json-schema@7.0.15': {}
+
+  '@types/luxon@3.7.3': {}
 
   '@types/methods@1.1.4': {}
 

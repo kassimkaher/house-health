@@ -10,6 +10,7 @@ import { ConsumptionModule } from "./consumption/consumption.module";
 import { FoodsModule } from "./foods/foods.module";
 import { PipelineAdminModule } from "./pipeline-admin/pipeline-admin.module";
 import { ProfileModule } from "./profile/profile.module";
+import { RemindersModule } from "./reminders/reminders.module";
 import { QueuesModule } from "./infra/queues.module";
 import { StorageModule } from "./infra/storage.module";
 import { HealthController } from "./health/health.controller";
@@ -45,6 +46,7 @@ import { RedisThrottlerStorage } from "./infra/throttler-redis.storage";
     PipelineAdminModule,
     FoodsModule,
     ConsumptionModule,
+    RemindersModule,
   ],
   controllers: [HealthController],
   providers: [

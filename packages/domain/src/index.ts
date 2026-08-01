@@ -14,3 +14,4 @@ export {
   type SnapshotBasis,
   type SnapshotSource,
 } from "./nutrition/snapshot";
+export { computeNextFireAt, type ReminderSchedule } from "./reminders/schedule";

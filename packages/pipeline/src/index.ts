@@ -17,3 +17,4 @@ export {
   type QueueName,
   type ReleaseBuildJobData,
 } from "./queues";
+export { ReminderSweeper, type DueDispatch } from "./reminders/sweeper";
