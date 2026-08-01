@@ -34,6 +34,16 @@ export const ERROR_CODES = {
   CALC_INVALID_INPUTS: "calc.invalid_inputs",
   /** No active calculation policy row exists for the requested equation. */
   CALC_NO_ACTIVE_POLICY: "calc.no_active_policy",
+  /** If-Match row version does not match — concurrent admin edit detected. */
+  CONFLICT_VERSION: "conflict.version",
+  /** Requested review-state transition is not allowed from the current state. */
+  CATALOG_INVALID_TRANSITION: "catalog.invalid_transition",
+  /** Barcode already actively assigned to another food. */
+  CATALOG_BARCODE_TAKEN: "catalog.barcode_taken",
+  /** Slug already in use. */
+  CATALOG_SLUG_TAKEN: "catalog.slug_taken",
+  /** Nutrient key does not exist in nutrient_definitions. */
+  CATALOG_UNKNOWN_NUTRIENT: "catalog.unknown_nutrient",
   /** IP/route rate limit exceeded (throttler). */
   RATE_LIMITED: "rate_limited",
   /** Resource does not exist or is not visible to the caller. */
