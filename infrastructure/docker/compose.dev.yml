@@ -1,0 +1,61 @@
+# Development data services. Apps (api/worker/admin-web) run on the host via
+# `pnpm dev`. All ports bind to 127.0.0.1 only — never expose these publicly.
+#
+#   docker compose -p hh-dev -f infrastructure/docker/compose.dev.yml up -d
+name: hh-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hh
+      POSTGRES_PASSWORD: hh_dev_password
+      POSTGRES_DB: health_house
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hh -d health_house"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 1g
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 256m
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: hh_minio
+      MINIO_ROOT_PASSWORD: hh_dev_minio_password
+    ports:
+      # 9000/9001 are taken by other projects on this shared host
+      - "127.0.0.1:9100:9000"
+      - "127.0.0.1:9101:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+
+volumes:
+  pg_data:
+  redis_data:
+  minio_data:

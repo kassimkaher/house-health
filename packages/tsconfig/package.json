@@ -1,0 +1,10 @@
+{
+  "name": "@hh/tsconfig",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "base.json",
+    "nest.json",
+    "nextjs.json"
+  ]
+}
