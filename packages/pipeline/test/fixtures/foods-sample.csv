@@ -1,0 +1,6 @@
+external_id,name_ar,name_en,food_type,preparation_state,category_slug,barcode,default_portion_grams,aliases_iraqi,aliases_en,energy_kcal,protein_g,carbs_g,fat_g,sat_fat_g,fiber_g,sugars_g,sodium_mg,cholesterol_mg,portion_label_ar,portion_label_en,portion_grams
+IQ-0001,صمون عراقي,Iraqi Samoon,generic_food,baked,bread,,90,صمونة|صمونه حجرية,samoon|samun,270,9,52,1.5,0.3,2.1,1.8,430,0,صمونة واحدة,1 samoon,90
+IQ-0002,تمن عنبر مطبوخ,Cooked Amber Rice,generic_food,cooked,rice-pasta,,150,تمن|رز عنبر,timman|amber rice,130,2.7,28,0.3,0.1,0.4,0.1,1,0,صحن تمن,1 plate,250
+IQ-0003,لبن رائب,Plain Yogurt Drink,generic_food,other,yogurt,6291041500999,240,لبن|شنينة,laban|shineena,60,3.5,4.7,3.2,2.1,0,4.7,50,13,كوب لبن,1 cup,240
+IQ-0004,كباب عراقي مشوي,Grilled Iraqi Kebab,prepared_dish,grilled,iraqi-dishes,,120,كباب|كباب مشوي,kebab|kabab,290,26,3,19,8,0.5,1,380,85,سيخ كباب,1 skewer,110
+IQ-BAD1,دهين خربان,Broken Row Missing Energy,generic_food,other,bread,,,,,,,4,1,,,,,,,,

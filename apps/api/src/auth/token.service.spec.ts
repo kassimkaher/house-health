@@ -25,6 +25,7 @@ const config: AppConfig = {
   accessTokenTtlSec: 600,
   refreshTokenTtlDays: 30,
   google: null,
+  s3: { endpoint: "http://127.0.0.1:9100", accessKey: "x", secretKey: "x", bucketPrefix: "hh-test" },
 };
 
 interface MockPrisma {

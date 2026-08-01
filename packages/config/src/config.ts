@@ -20,6 +20,10 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_REDIRECT_URI: z.string().url().optional(),
+  S3_ENDPOINT: z.string().url().default("http://127.0.0.1:9100"),
+  S3_ACCESS_KEY: z.string().default("hh_minio"),
+  S3_SECRET_KEY: z.string().default("hh_dev_minio_password"),
+  S3_BUCKET_PREFIX: z.string().regex(/^[a-z0-9-]+$/).default("hh"),
 });
 
 export interface GoogleOidcConfig {
@@ -42,6 +46,12 @@ export interface AppConfig {
   refreshTokenTtlDays: number;
   /** Present only when the full GOOGLE_* trio is configured. */
   google: GoogleOidcConfig | null;
+  s3: {
+    endpoint: string;
+    accessKey: string;
+    secretKey: string;
+    bucketPrefix: string;
+  };
 }
 
 /** Thrown when environment validation fails; message lists every bad field. */
@@ -138,5 +148,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     accessTokenTtlSec: e.ACCESS_TOKEN_TTL_SEC,
     refreshTokenTtlDays: e.REFRESH_TOKEN_TTL_DAYS,
     google,
+    s3: {
+      endpoint: e.S3_ENDPOINT,
+      accessKey: e.S3_ACCESS_KEY,
+      secretKey: e.S3_SECRET_KEY,
+      bucketPrefix: e.S3_BUCKET_PREFIX,
+    },
   };
 }
