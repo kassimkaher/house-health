@@ -28,6 +28,12 @@ export const ERROR_CODES = {
   AUTH_OIDC_EMAIL_CONFLICT: "auth.oidc_email_conflict",
   /** Request body/query failed schema validation; see `fields`. */
   VALIDATION_FAILED: "validation.failed",
+  /** Calorie estimate requested but profile lacks sex/birthDate/height/weight. */
+  CALC_PROFILE_INCOMPLETE: "calc.profile_incomplete",
+  /** Calculation inputs rejected by the engine's guard rails; see `fields`. */
+  CALC_INVALID_INPUTS: "calc.invalid_inputs",
+  /** No active calculation policy row exists for the requested equation. */
+  CALC_NO_ACTIVE_POLICY: "calc.no_active_policy",
   /** IP/route rate limit exceeded (throttler). */
   RATE_LIMITED: "rate_limited",
   /** Resource does not exist or is not visible to the caller. */

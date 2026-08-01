@@ -5,6 +5,7 @@ import { AUTH_GUARD_OPTIONS, JwtAuthGuard, PermissionsGuard, REDIS } from "@hh/a
 import { APP_CONFIG, type AppConfig } from "@hh/config";
 import type Redis from "ioredis";
 import { AuthModule } from "./auth/auth.module";
+import { ProfileModule } from "./profile/profile.module";
 import { HealthController } from "./health/health.controller";
 import { ApiThrottlerGuard } from "./infra/api-throttler.guard";
 import { AppConfigModule } from "./infra/config.module";
@@ -31,6 +32,7 @@ import { RedisThrottlerStorage } from "./infra/throttler-redis.storage";
       }),
     }),
     AuthModule,
+    ProfileModule,
   ],
   controllers: [HealthController],
   providers: [
