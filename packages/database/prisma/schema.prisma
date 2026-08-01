@@ -1,0 +1,1032 @@
+// Health House — full persistence schema.
+//
+// OPERATIONAL CONVENTION: migrations touching food/search tables are created
+// with `prisma migrate dev --create-only` and hand-edited. Generated columns
+// (name_*_norm, search_tsv), partial/expression indexes, the normalize_arabic()
+// function, and the audit_log REVOKE are raw SQL that Prisma cannot express.
+// Never run `prisma db push` — it would drop those hand-written objects.
+//
+// Generated columns appear here as nullable fields that application code must
+// NEVER write; PostgreSQL computes them (GENERATED ALWAYS AS ... STORED).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pg_trgm, unaccent, pgcrypto, btree_gin, citext]
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  user
+  nutrition_reviewer
+  data_manager
+  support_admin
+  super_admin
+}
+
+enum AccountStatus {
+  pending_verification
+  active
+  suspended
+  deleted
+}
+
+enum AuthProvider {
+  password
+  google
+}
+
+enum AuthTokenKind {
+  email_verify
+  password_reset
+}
+
+enum Sex {
+  male
+  female
+}
+
+enum ActivityLevel {
+  sedentary
+  light
+  moderate
+  active
+  very_active
+}
+
+enum GoalType {
+  lose
+  maintain
+  gain
+}
+
+enum UnitPreference {
+  metric
+  imperial
+}
+
+enum WeightSource {
+  manual
+  import
+  admin
+}
+
+enum FoodType {
+  generic_food
+  branded_product
+  prepared_dish
+  recipe_template
+  user_recipe
+}
+
+enum PreparationState {
+  raw
+  cooked
+  baked
+  grilled
+  fried
+  steamed
+  canned
+  dried
+  other
+}
+
+enum ReviewStatus {
+  imported
+  normalized
+  needs_review
+  verified
+  rejected
+  archived
+}
+
+enum PublicationStatus {
+  draft
+  published
+  deprecated
+}
+
+enum AliasKind {
+  iraqi_dialect
+  msa_variant
+  english
+  transliteration
+  colloquial_other
+  brand_variant
+}
+
+enum BarcodeType {
+  ean13
+  ean8
+  upc_a
+  upc_e
+  code128
+  other
+}
+
+enum PortionSource {
+  provider
+  curated
+  user_submitted
+  inferred
+}
+
+enum ImportJobStatus {
+  queued
+  validating
+  parsing
+  normalizing
+  matching
+  importing
+  completed
+  partially_completed
+  failed
+  cancelled
+}
+
+enum ImportMode {
+  create_only
+  update_existing
+  upsert
+}
+
+enum ImportRowStatus {
+  pending
+  created
+  updated
+  skipped_duplicate
+  skipped_invalid
+  error
+}
+
+enum ReleaseStatus {
+  draft
+  candidate
+  published
+  rolled_back
+  archived
+}
+
+enum MealSlot {
+  breakfast
+  lunch
+  dinner
+  snack
+  custom
+}
+
+enum DiaryEntryStatus {
+  planned
+  consumed
+  skipped
+}
+
+enum DiaryItemType {
+  food
+  recipe
+  meal_group
+}
+
+enum RecipeStatus {
+  active
+  archived
+}
+
+enum ShortcutEntityType {
+  food
+  recipe
+  meal_group
+}
+
+enum ShortcutKind {
+  favorite
+  pin
+}
+
+enum ReminderType {
+  meal_slot
+  meal_group
+  hydration
+  weigh_in
+  custom
+}
+
+enum DeliveryStatus {
+  scheduled
+  queued
+  sent
+  failed
+  cancelled
+  skipped
+}
+
+enum MediaAssetStatus {
+  pending
+  ready
+  rejected
+}
+
+// ---------------------------------------------------------------------------
+// Identity & auth
+// ---------------------------------------------------------------------------
+
+model User {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email           String        @db.Citext
+  emailVerifiedAt DateTime?     @map("email_verified_at")
+  passwordHash    String?       @map("password_hash") // argon2id; null for OIDC-only accounts
+  roles           UserRole[]    @default([user])
+  status          AccountStatus @default(pending_verification)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  deletedAt       DateTime?     @map("deleted_at") // soft delete; email uniqueness is partial (raw SQL)
+
+  identities    AuthIdentity[]
+  sessions      Session[]
+  actionTokens  AuthActionToken[]
+  profile       UserProfile?
+  weightEntries WeightEntry[]
+  calcSnapshots CalculationSnapshot[]
+  recipes       Recipe[]
+  mealGroups    MealGroup[]
+  diaryEntries  DiaryEntry[]
+  shortcuts     UserShortcut[]
+  reminders     Reminder[]
+  pushTokens    PushToken[]
+
+  // Partial unique index on lower(email) WHERE deleted_at IS NULL — raw SQL.
+  @@map("users")
+}
+
+model AuthIdentity {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String       @map("user_id") @db.Uuid
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        AuthProvider
+  providerSubject String       @map("provider_subject") // Google `sub`
+  emailAtLink     String?      @map("email_at_link")
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  @@unique([provider, providerSubject])
+  @@index([userId])
+  @@map("auth_identities")
+}
+
+model Session {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceName String?   @map("device_name")
+  deviceId   String?   @map("device_id") // client-generated stable identifier
+  userAgent  String?   @map("user_agent")
+  ipCreated  String?   @map("ip_created")
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  refreshTokens RefreshToken[]
+
+  @@index([userId, revokedAt])
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId String    @map("session_id") @db.Uuid
+  session   Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  familyId  String    @map("family_id") @db.Uuid // constant across rotations in a session
+  tokenHash String    @unique @map("token_hash") // sha256(token); raw token never stored
+  parentId  String?   @map("parent_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at") // second use of a used token => reuse => revoke family
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([familyId])
+  @@index([sessionId])
+  @@map("refresh_tokens")
+}
+
+model AuthActionToken {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      AuthTokenKind
+  tokenHash String        @unique @map("token_hash")
+  expiresAt DateTime      @map("expires_at")
+  usedAt    DateTime?     @map("used_at")
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  @@index([userId, kind])
+  @@map("auth_action_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Profile, weight history, calculation engine
+// ---------------------------------------------------------------------------
+
+model UserProfile {
+  userId            String         @id @map("user_id") @db.Uuid
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName       String?        @map("display_name")
+  locale            String         @default("ar-IQ")
+  preferredLanguage String         @default("ar") @map("preferred_language")
+  timezone          String         @default("Asia/Baghdad")
+  sex               Sex?
+  birthDate         DateTime?      @map("birth_date") @db.Date
+  heightCm          Decimal?       @map("height_cm") @db.Decimal(5, 1)
+  currentWeightKg   Decimal?       @map("current_weight_kg") @db.Decimal(5, 2)
+  targetWeightKg    Decimal?       @map("target_weight_kg") @db.Decimal(5, 2)
+  activityLevel     ActivityLevel  @default(sedentary) @map("activity_level")
+  goalType          GoalType       @default(maintain) @map("goal_type")
+  goalRateKgPerWeek Decimal?       @map("goal_rate_kg_per_week") @db.Decimal(3, 2)
+  dietaryPrefs      String[]       @map("dietary_prefs")
+  allergies         String[]
+  excludedFoods     String[]       @map("excluded_foods")
+  unitPreference    UnitPreference @default(metric) @map("unit_preference")
+  medicalAckAt      DateTime?      @map("medical_ack_at") // acknowledgement only; no diagnosis stored
+  activeCalcSnapshotId String?     @map("active_calc_snapshot_id") @db.Uuid
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  @@map("user_profiles")
+}
+
+model WeightEntry {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String       @map("user_id") @db.Uuid
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weightKg   Decimal      @map("weight_kg") @db.Decimal(5, 2)
+  measuredOn DateTime     @map("measured_on") @db.Date // user-local date
+  source     WeightSource @default(manual)
+  note       String?
+  photoKey   String?      @map("photo_key") // object-storage key, private bucket
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  @@unique([userId, measuredOn])
+  @@map("weight_entries")
+}
+
+model CalculationPolicy {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key       String // "mifflin_st_jeor"
+  version   Int
+  isActive  Boolean  @default(false) @map("is_active")
+  // config: activity multipliers, deficit/surplus per goal rate, macro split
+  // rules, min-calorie floors, warning thresholds
+  config    Json
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  snapshots CalculationSnapshot[]
+
+  // Partial unique: one active policy per key (raw SQL).
+  @@unique([key, version])
+  @@map("calculation_policies")
+}
+
+model CalculationSnapshot {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String            @map("user_id") @db.Uuid
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policyId      String            @map("policy_id") @db.Uuid
+  policy        CalculationPolicy @relation(fields: [policyId], references: [id])
+  // inputs: {sex, ageYears, heightCm, weightKg, activityLevel, goalType, goalRateKgPerWeek}
+  inputs        Json
+  // outputs: {bmr, maintenanceKcal, targetKcal, deltaKcal, macros:{...}, warnings:[...], explanation:{...}}
+  outputs       Json
+  effectiveFrom DateTime          @default(now()) @map("effective_from")
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  @@index([userId, effectiveFrom(sort: Desc)])
+  @@map("calculation_snapshots")
+}
+
+// ---------------------------------------------------------------------------
+// Food catalog (mutable editorial layer)
+// ---------------------------------------------------------------------------
+
+model FoodCategory {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug       String         @unique
+  nameAr     String         @map("name_ar")
+  nameEn     String         @map("name_en")
+  parentId   String?        @map("parent_id") @db.Uuid
+  parent     FoodCategory?  @relation("category_tree", fields: [parentId], references: [id], onDelete: Restrict)
+  children   FoodCategory[] @relation("category_tree")
+  sortOrder  Int            @default(0) @map("sort_order")
+  rowVersion Int            @default(1) @map("row_version")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  foods Food[]
+
+  @@map("food_categories")
+}
+
+model Brand {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug         String   @unique
+  nameAr       String?  @map("name_ar")
+  nameEn       String   @map("name_en")
+  nameNorm     String?  @map("name_norm") // GENERATED ALWAYS — never write from app
+  manufacturer String?
+  countryCode  String?  @map("country_code") @db.Char(2)
+  rowVersion   Int      @default(1) @map("row_version")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  foods Food[]
+
+  @@map("brands")
+}
+
+model NutrientDefinition {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key          String  @unique // "energy_kcal", "protein_g", ...
+  nameAr       String  @map("name_ar")
+  nameEn       String  @map("name_en")
+  unit         String // canonical per-100g unit: kcal, kJ, g, mg
+  isCore       Boolean @default(false) @map("is_core")
+  displayOrder Int     @map("display_order")
+  precision    Int     @default(1)
+  rowVersion   Int     @default(1) @map("row_version")
+
+  foodNutrients FoodNutrient[]
+
+  @@map("nutrient_definitions")
+}
+
+model Food {
+  id                  String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug                String            @unique
+  foodType            FoodType          @map("food_type")
+  nameAr              String            @map("name_ar")
+  nameEn              String            @map("name_en")
+  nameArNorm          String?           @map("name_ar_norm") // GENERATED ALWAYS — never write
+  nameEnNorm          String?           @map("name_en_norm") // GENERATED ALWAYS — never write
+  descriptionAr       String?           @map("description_ar")
+  descriptionEn       String?           @map("description_en")
+  categoryId          String?           @map("category_id") @db.Uuid
+  category            FoodCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  preparationState    PreparationState  @default(other) @map("preparation_state")
+  brandId             String?           @map("brand_id") @db.Uuid
+  brand               Brand?            @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  defaultPortionGrams Decimal?          @map("default_portion_grams") @db.Decimal(8, 2)
+  densityGPerMl       Decimal?          @map("density_g_per_ml") @db.Decimal(8, 4)
+  edibleFraction      Decimal?          @map("edible_fraction") @db.Decimal(4, 3)
+  imageRefs           Json?             @map("image_refs") // [{kind, key, width, height}]
+  marketTags          String[]          @map("market_tags") // ["IQ","SA","global"]
+  dietaryTags         String[]          @map("dietary_tags")
+  allergenTags        String[]          @map("allergen_tags")
+  dataConfidence      Decimal           @default(0.5) @map("data_confidence") @db.Decimal(3, 2)
+  reviewStatus        ReviewStatus      @default(imported) @map("review_status")
+  publicationStatus   PublicationStatus @default(draft) @map("publication_status")
+  // Denormalized per-100g map rebuilt whenever food_nutrients change; read by
+  // admin cards and the release builder. {"energy_kcal": 265, ...}
+  nutrientsDenorm     Json?             @map("nutrients_denorm")
+  ownerUserId         String?           @map("owner_user_id") @db.Uuid // set only for user_recipe
+  createdById         String?           @map("created_by_id") @db.Uuid
+  reviewedById        String?           @map("reviewed_by_id") @db.Uuid
+  reviewedAt          DateTime?         @map("reviewed_at")
+  reviewNotes         String?           @map("review_notes")
+  publishedAt         DateTime?         @map("published_at")
+  rowVersion          Int               @default(1) @map("row_version") // optimistic concurrency
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+  deletedAt           DateTime?         @map("deleted_at")
+
+  aliases       FoodAlias[]
+  nutrients     FoodNutrient[]
+  barcodes      Barcode[]
+  portions      FoodPortion[]
+  sourceRecords FoodSourceRecord[]
+  versions      FoodVersion[]
+
+  @@index([reviewStatus, publicationStatus])
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([foodType])
+  @@index([ownerUserId])
+  @@map("foods")
+}
+
+model FoodAlias {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  foodId    String    @map("food_id") @db.Uuid
+  food      Food      @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  alias     String
+  aliasNorm String?   @map("alias_norm") // GENERATED ALWAYS — never write
+  kind      AliasKind
+  locale    String? // "ar-IQ", "ar", "en"
+  source    String? // "import:usda", "reviewer", "user_feedback"
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  // Unique on (food_id, alias_norm, kind) — raw SQL (generated column).
+  @@index([foodId])
+  @@map("food_aliases")
+}
+
+model FoodNutrient {
+  foodId        String             @map("food_id") @db.Uuid
+  nutrientId    String             @map("nutrient_id") @db.Uuid
+  food          Food               @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  nutrient      NutrientDefinition @relation(fields: [nutrientId], references: [id], onDelete: Restrict)
+  valuePer100g  Decimal            @map("value_per_100g") @db.Decimal(10, 3) // canonical unit per 100 g edible
+  originalValue Decimal?           @map("original_value") @db.Decimal(12, 4)
+  originalUnit  String?            @map("original_unit")
+  originalBasis String?            @map("original_basis") // "per_serving_30g", "per_100ml"
+  derivation    String? // "measured" | "calculated" | "estimated" | "label"
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  @@id([foodId, nutrientId])
+  @@map("food_nutrients")
+}
+
+model Barcode {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  foodId    String      @map("food_id") @db.Uuid
+  food      Food        @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  code      String // normalized digits; leading zeros preserved
+  type      BarcodeType @default(ean13)
+  isActive  Boolean     @default(true) @map("is_active")
+  source    String?
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  // Partial unique ON (code) WHERE is_active — raw SQL. One active food per
+  // barcode globally; reject/archive flows flip is_active in-transaction.
+  @@index([foodId])
+  @@index([code])
+  @@map("barcodes")
+}
+
+model FoodPortion {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  foodId     String        @map("food_id") @db.Uuid
+  food       Food          @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  labelAr    String        @map("label_ar") // "صمونة واحدة"
+  labelEn    String        @map("label_en") // "1 samoon"
+  grams      Decimal       @db.Decimal(8, 2)
+  source     PortionSource @default(curated)
+  confidence Decimal       @default(0.8) @db.Decimal(3, 2)
+  reviewStatus ReviewStatus @default(needs_review) @map("review_status")
+  locale     String? // "ar-IQ" for Iraqi-specific portions
+  isDefault  Boolean       @default(false) @map("is_default")
+  sortOrder  Int           @default(0) @map("sort_order")
+  rowVersion Int           @default(1) @map("row_version")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  @@index([foodId])
+  @@map("food_portions")
+}
+
+model DataProvider {
+  id                  String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key                 String  @unique // "usda_fdc", "openfoodfacts", "iq_manual"
+  name                String
+  licenseName         String  @map("license_name") // "CC0", "ODbL", "internal"
+  licenseUrl          String? @map("license_url")
+  attributionRequired Boolean @default(false) @map("attribution_required")
+  licenseMeta         Json?   @map("license_meta")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  sourceRecords FoodSourceRecord[]
+  importJobs    ImportJob[]
+
+  @@map("data_providers")
+}
+
+model FoodSourceRecord {
+  id                    String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  foodId                String       @map("food_id") @db.Uuid
+  food                  Food         @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  providerId            String       @map("provider_id") @db.Uuid
+  provider              DataProvider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  externalId            String       @map("external_id")
+  originalPayload       Json         @map("original_payload")
+  payloadChecksum       String       @map("payload_checksum") @db.Char(64) // sha256, canonicalized payload
+  transformationVersion String       @map("transformation_version") // "normalizer@1"
+  importJobId           String?      @map("import_job_id") @db.Uuid
+  importedAt            DateTime     @default(now()) @map("imported_at")
+  reviewerId            String?      @map("reviewer_id") @db.Uuid
+  reviewerNotes         String?      @map("reviewer_notes")
+
+  @@unique([providerId, externalId])
+  @@index([foodId])
+  @@index([payloadChecksum])
+  @@map("food_source_records")
+}
+
+// ---------------------------------------------------------------------------
+// Import pipeline
+// ---------------------------------------------------------------------------
+
+model ImportJob {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  providerId         String          @map("provider_id") @db.Uuid
+  provider           DataProvider    @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  status             ImportJobStatus @default(queued)
+  mode               ImportMode      @default(upsert)
+  isDryRun           Boolean         @default(false) @map("is_dry_run")
+  sourceFileKey      String?         @map("source_file_key") // object-storage key
+  sourceFileName     String?         @map("source_file_name")
+  sourceFileChecksum String?         @map("source_file_checksum") @db.Char(64)
+  mappingConfig      Json?           @map("mapping_config")
+  duplicatePolicy    Json?           @map("duplicate_policy")
+  totalRows          Int?            @map("total_rows")
+  checkpointRow      Int             @default(0) @map("checkpoint_row") // committed with each batch
+  stats              Json? // {created, updated, skipped, errors, flaggedDuplicates}
+  errorSummary       String?         @map("error_summary")
+  idempotencyKey     String?         @unique @map("idempotency_key")
+  createdById        String          @map("created_by_id") @db.Uuid
+  startedAt          DateTime?       @map("started_at")
+  finishedAt         DateTime?       @map("finished_at")
+  createdAt          DateTime        @default(now()) @map("created_at")
+
+  rows ImportJobRow[]
+
+  @@index([status, createdAt(sort: Desc)])
+  @@map("import_jobs")
+}
+
+model ImportJobRow {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobId         String          @map("job_id") @db.Uuid
+  job           ImportJob       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  rowNumber     Int             @map("row_number")
+  status        ImportRowStatus @default(pending)
+  externalId    String?         @map("external_id")
+  matchedFoodId String?         @map("matched_food_id") @db.Uuid
+  matchMethod   String?         @map("match_method") // external_id | barcode | name_exact | trgm_similarity
+  matchScore    Decimal?        @map("match_score") @db.Decimal(4, 3)
+  errors        Json? // [{field, code, message}]
+  rawData       Json?           @map("raw_data") // retained only for error rows
+
+  @@unique([jobId, rowNumber])
+  @@index([jobId, status])
+  @@map("import_job_rows")
+}
+
+// ---------------------------------------------------------------------------
+// Dataset releases (immutable read layer)
+// ---------------------------------------------------------------------------
+
+model DatasetRelease {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  version      String        @unique // calver "2026.08.0"
+  status       ReleaseStatus @default(draft)
+  isActive     Boolean       @default(false) @map("is_active") // partial unique WHERE is_active — raw SQL
+  notes        String?
+  ownerId      String        @map("owner_id") @db.Uuid
+  foodCount    Int?          @map("food_count")
+  addedCount   Int?          @map("added_count")
+  changedCount Int?          @map("changed_count")
+  removedCount Int?          @map("removed_count")
+  checksum     String?       @db.Char(64) // sha256 over sorted (foodId, versionChecksum)
+  publishedAt  DateTime?     @map("published_at")
+  rolledBackAt DateTime?     @map("rolled_back_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  items ReleaseItem[]
+
+  @@map("dataset_releases")
+}
+
+model FoodVersion {
+  id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  foodId              String           @map("food_id") @db.Uuid
+  food                Food             @relation(fields: [foodId], references: [id], onDelete: Restrict)
+  versionNumber       Int              @map("version_number") // per-food monotonic
+  contentChecksum     String           @map("content_checksum") @db.Char(64)
+  // -- fully denormalized, immutable, search-ready copy --------------------
+  slug                String
+  foodType            FoodType         @map("food_type")
+  nameAr              String           @map("name_ar")
+  nameEn              String           @map("name_en")
+  nameArNorm          String?          @map("name_ar_norm") // GENERATED ALWAYS
+  nameEnNorm          String?          @map("name_en_norm") // GENERATED ALWAYS
+  searchTsv           Unsupported("tsvector")? @map("search_tsv") // GENERATED ALWAYS
+  descriptionAr       String?          @map("description_ar")
+  descriptionEn       String?          @map("description_en")
+  aliasesNorm         String[]         @map("aliases_norm") // pre-normalized by release builder
+  aliasesDisplay      Json?            @map("aliases_display") // [{alias, kind, locale}]
+  brandName           String?          @map("brand_name")
+  brandNameNorm       String?          @map("brand_name_norm") // GENERATED ALWAYS
+  categorySlug        String?          @map("category_slug")
+  categoryPath        String?          @map("category_path") // "grains/bread"
+  preparationState    PreparationState @map("preparation_state")
+  barcodes            String[]
+  defaultPortionGrams Decimal?         @map("default_portion_grams") @db.Decimal(8, 2)
+  densityGPerMl       Decimal?         @map("density_g_per_ml") @db.Decimal(8, 4)
+  edibleFraction      Decimal?         @map("edible_fraction") @db.Decimal(4, 3)
+  marketTags          String[]         @map("market_tags")
+  dietaryTags         String[]         @map("dietary_tags")
+  allergenTags        String[]         @map("allergen_tags")
+  imageRefs           Json?            @map("image_refs")
+  nutrients           Json // per-100g map {"energy_kcal": 265, ...}
+  portions            Json // [{labelAr, labelEn, grams, source, isDefault}]
+  dataConfidence      Decimal          @map("data_confidence") @db.Decimal(3, 2)
+  isInActiveRelease   Boolean          @default(false) @map("is_in_active_release")
+  createdAt           DateTime         @default(now()) @map("created_at")
+
+  releaseItems ReleaseItem[]
+
+  @@unique([foodId, versionNumber])
+  @@index([foodId, contentChecksum])
+  @@map("food_versions")
+}
+
+model ReleaseItem {
+  releaseId     String         @map("release_id") @db.Uuid
+  foodId        String         @map("food_id") @db.Uuid
+  foodVersionId String         @map("food_version_id") @db.Uuid
+  release       DatasetRelease @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  foodVersion   FoodVersion    @relation(fields: [foodVersionId], references: [id], onDelete: Restrict)
+  changeKind    String         @map("change_kind") // added | changed | unchanged
+
+  @@id([releaseId, foodId])
+  @@index([foodVersionId])
+  @@map("release_items")
+}
+
+// ---------------------------------------------------------------------------
+// Recipes, meal groups, diary
+// ---------------------------------------------------------------------------
+
+model Recipe {
+  id                 String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId        String?      @map("owner_user_id") @db.Uuid // null => curated recipe_template
+  owner              User?        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  foodId             String?      @unique @map("food_id") @db.Uuid // searchable Food façade row
+  titleAr            String       @map("title_ar")
+  titleEn            String?      @map("title_en")
+  status             RecipeStatus @default(active)
+  servings           Decimal      @db.Decimal(5, 2)
+  cookedWeightGrams  Decimal?     @map("cooked_weight_grams") @db.Decimal(8, 2)
+  instructions       Json? // [{step, textAr, textEn?}]
+  imageKey           String?      @map("image_key") // private object-storage key
+  // Totals snapshot: {total: {...nutrients}, perServing: {...}, computedAt, v}
+  nutritionTotals    Json?        @map("nutrition_totals")
+  rowVersion         Int          @default(1) @map("row_version")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+  deletedAt          DateTime?    @map("deleted_at")
+
+  ingredients RecipeIngredient[]
+
+  @@index([ownerUserId, status])
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recipeId          String  @map("recipe_id") @db.Uuid
+  recipe            Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  foodId            String  @map("food_id") @db.Uuid // reference for re-resolve UX only
+  quantity          Decimal @db.Decimal(8, 2)
+  unit              String // "g" | "ml" | "portion:<portionId>"
+  grams             Decimal @db.Decimal(8, 2) // resolved gram weight
+  preparationNote   String? @map("preparation_note")
+  // Immutable snapshot (see docs/architecture/nutrition-snapshots.md)
+  nutritionSnapshot Json    @map("nutrition_snapshot")
+  sortOrder         Int     @default(0) @map("sort_order")
+
+  @@index([recipeId])
+  @@index([foodId])
+  @@map("recipe_ingredients")
+}
+
+model MealGroup {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nameAr     String    @map("name_ar")
+  nameEn     String?   @map("name_en")
+  mealSlot   MealSlot? @map("meal_slot") // optional default slot
+  isFavorite Boolean   @default(false) @map("is_favorite")
+  sortOrder  Int       @default(0) @map("sort_order")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  items MealGroupItem[]
+
+  @@index([userId, deletedAt])
+  @@map("meal_groups")
+}
+
+model MealGroupItem {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mealGroupId String        @map("meal_group_id") @db.Uuid
+  mealGroup   MealGroup     @relation(fields: [mealGroupId], references: [id], onDelete: Cascade)
+  itemType    DiaryItemType @map("item_type") // food | recipe
+  foodId      String?       @map("food_id") @db.Uuid
+  recipeId    String?       @map("recipe_id") @db.Uuid
+  quantity    Decimal       @db.Decimal(8, 2)
+  unit        String
+  grams       Decimal?      @db.Decimal(8, 2)
+  sortOrder   Int           @default(0) @map("sort_order")
+
+  @@index([mealGroupId])
+  @@map("meal_group_items")
+}
+
+model DiaryEntry {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String           @map("user_id") @db.Uuid
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entryDate         DateTime         @map("entry_date") @db.Date // client-supplied user-local date
+  mealSlot          MealSlot         @map("meal_slot")
+  customSlotName    String?          @map("custom_slot_name")
+  status            DiaryEntryStatus @default(consumed)
+  itemType          DiaryItemType    @map("item_type")
+  foodId            String?          @map("food_id") @db.Uuid // soft reference — food may be deprecated later
+  recipeId          String?          @map("recipe_id") @db.Uuid
+  mealGroupId       String?          @map("meal_group_id") @db.Uuid // provenance when added via group
+  quantity          Decimal          @db.Decimal(8, 2)
+  unit              String
+  grams             Decimal?         @db.Decimal(8, 2)
+  // Immutable snapshot — the ONLY thing daily totals read.
+  nutritionSnapshot Json             @map("nutrition_snapshot")
+  note              String?
+  loggedAt          DateTime         @default(now()) @map("logged_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  deletedAt         DateTime?        @map("deleted_at")
+
+  @@index([userId, entryDate])
+  @@map("diary_entries")
+}
+
+model UserShortcut {
+  userId     String             @map("user_id") @db.Uuid
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entityType ShortcutEntityType @map("entity_type")
+  entityId   String             @map("entity_id") @db.Uuid
+  kind       ShortcutKind
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  @@id([userId, entityType, entityId, kind])
+  @@index([userId, kind])
+  @@map("user_shortcuts")
+}
+
+// Recents are a Redis sorted set (recents:{userId}), rebuilt lazily from
+// diary_entries — intentionally no table here.
+
+// ---------------------------------------------------------------------------
+// Reminders & notifications
+// ---------------------------------------------------------------------------
+
+model Reminder {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        ReminderType
+  mealSlot    MealSlot?    @map("meal_slot")
+  mealGroupId String?      @map("meal_group_id") @db.Uuid
+  customText  String?      @map("custom_text")
+  timeLocal   String       @map("time_local") // "08:30", resolved through profile timezone
+  daysOfWeek  Int[]        @map("days_of_week") // 0=Sunday..6; empty => one-time
+  oneTimeOn   DateTime?    @map("one_time_on") @db.Date
+  isEnabled   Boolean      @default(true) @map("is_enabled")
+  channel     String       @default("push")
+  // Precomputed next occurrence in UTC; advanced by the sweeper in the same
+  // transaction that enqueues the dispatch job.
+  nextFireAt  DateTime?    @map("next_fire_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  deletedAt   DateTime?    @map("deleted_at")
+
+  deliveries ReminderDelivery[]
+
+  @@index([nextFireAt])
+  @@index([userId])
+  @@map("reminders")
+}
+
+model ReminderDelivery {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reminderId   String         @map("reminder_id") @db.Uuid
+  reminder     Reminder       @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  scheduledFor DateTime       @map("scheduled_for")
+  status       DeliveryStatus @default(scheduled)
+  provider     String? // "log" | "fcm"
+  sentAt       DateTime?      @map("sent_at")
+  failReason   String?        @map("fail_reason")
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  @@unique([reminderId, scheduledFor]) // idempotent scheduling under retries
+  @@index([status, scheduledFor])
+  @@map("reminder_deliveries")
+}
+
+model PushToken {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String   @unique
+  platform   String // "android" | "ios" | "web"
+  createdAt  DateTime @default(now()) @map("created_at")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+
+  @@index([userId])
+  @@map("push_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Search analytics
+// ---------------------------------------------------------------------------
+
+model SearchQueryLog {
+  id           BigInt   @id @default(autoincrement())
+  termNorm     String   @map("term_norm") // normalized term only — no free-text PII
+  resultCount  Int      @map("result_count")
+  pickedFoodId String?  @map("picked_food_id") @db.Uuid
+  userId       String?  @map("user_id") @db.Uuid // nullable; analytics may be anonymous
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([termNorm])
+  @@index([createdAt])
+  @@map("search_query_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Media assets
+// ---------------------------------------------------------------------------
+
+model MediaAsset {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bucket      String
+  key         String
+  contentType String           @map("content_type")
+  sizeBytes   BigInt?          @map("size_bytes")
+  checksum    String?          @db.Char(64)
+  status      MediaAssetStatus @default(pending)
+  kind        String // "food_image" | "weight_photo" | "recipe_image" | "import_file" | "export"
+  ownerUserId String?          @map("owner_user_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@unique([bucket, key])
+  @@index([status])
+  @@index([ownerUserId])
+  @@map("media_assets")
+}
+
+// ---------------------------------------------------------------------------
+// Audit, outbox, idempotency
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         BigInt    @id @default(autoincrement())
+  actorId    String?   @map("actor_id") @db.Uuid
+  actorRoles UserRole[] @map("actor_roles")
+  action     String // "food.review.approve", "release.publish", "user.role.change", ...
+  entityType String    @map("entity_type")
+  entityId   String?   @map("entity_id")
+  before     Json?
+  after      Json?
+  ip         String?
+  requestId  String?   @map("request_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  // Append-only: REVOKE UPDATE, DELETE from the app role — raw SQL migration.
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+model OutboxEvent {
+  id          BigInt    @id @default(autoincrement())
+  topic       String // "food.nutrients.changed", "release.published", ...
+  payload     Json
+  createdAt   DateTime  @default(now()) @map("created_at")
+  processedAt DateTime? @map("processed_at")
+  attempts    Int       @default(0)
+
+  @@index([processedAt, createdAt])
+  @@map("outbox_events")
+}
+
+model IdempotencyKey {
+  key            String   @id // client-supplied
+  userId         String   @map("user_id") @db.Uuid
+  requestHash    String   @map("request_hash") @db.Char(64)
+  responseStatus Int?     @map("response_status")
+  responseBody   Json?    @map("response_body")
+  lockedAt       DateTime @default(now()) @map("locked_at")
+  expiresAt      DateTime @map("expires_at") // TTL cleanup via maintenance job
+
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}

@@ -6,12 +6,23 @@
   "types": "src/index.ts",
   "scripts": {
     "lint": "eslint src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prisma:generate": "prisma generate",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "seed": "tsx prisma/seed.ts"
   },
   "devDependencies": {
     "@hh/eslint-config": "workspace:*",
     "@hh/tsconfig": "workspace:*",
     "eslint": "^9.20.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "prisma": "^6.3.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^22.10.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.3.0",
+    "@hh/auth": "workspace:*"
   }
 }
