@@ -4,6 +4,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Host tooling must be Node 22 (see .nvmrc). Prefer nvm-installed node.
+if [ -d "$HOME/.nvm/versions/node" ]; then
+  NODE22_BIN="$(ls -d "$HOME"/.nvm/versions/node/v22*/bin 2>/dev/null | sort -V | tail -1)"
+  [ -n "${NODE22_BIN:-}" ] && export PATH="$NODE22_BIN:$PATH"
+fi
+
 COMPOSE=(docker compose -p hh-test -f infrastructure/docker/compose.test.yml)
 
 cleanup() { "${COMPOSE[@]}" down -v --remove-orphans >/dev/null 2>&1 || true; }
