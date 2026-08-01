@@ -6,6 +6,7 @@ import { APP_CONFIG, type AppConfig } from "@hh/config";
 import type Redis from "ioredis";
 import { AuthModule } from "./auth/auth.module";
 import { CatalogModule } from "./catalog/catalog.module";
+import { FoodsModule } from "./foods/foods.module";
 import { PipelineAdminModule } from "./pipeline-admin/pipeline-admin.module";
 import { ProfileModule } from "./profile/profile.module";
 import { QueuesModule } from "./infra/queues.module";
@@ -41,6 +42,7 @@ import { RedisThrottlerStorage } from "./infra/throttler-redis.storage";
     ProfileModule,
     CatalogModule,
     PipelineAdminModule,
+    FoodsModule,
   ],
   controllers: [HealthController],
   providers: [
