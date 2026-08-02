@@ -15,3 +15,11 @@ export {
   type SnapshotSource,
 } from "./nutrition/snapshot";
 export { computeNextFireAt, type ReminderSchedule } from "./reminders/schedule";
+export {
+  GUIDANCE_THRESHOLDS,
+  evaluateDailyGuidance,
+  evaluateWeightGuidance,
+  type DailyGuidanceInput,
+  type GuidanceMessage,
+  type WeightGuidanceInput,
+} from "./guidance/rules";
