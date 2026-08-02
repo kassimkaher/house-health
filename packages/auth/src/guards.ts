@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { ERROR_CODES } from "@hh/contracts";
+import { ACCESS_COOKIE, CSRF_COOKIE, CSRF_HEADER } from "./cookies";
 import { IS_PUBLIC_KEY, PERMISSION_KEY, type RequestUser } from "./decorators";
 import { verifyAccessToken, type AccessTokenClaims } from "./jwt";
 import { hasPermission, type Permission } from "./permissions";
@@ -33,13 +34,19 @@ export const REDIS = "REDIS";
 
 interface GuardedRequest {
   headers: Record<string, string | string[] | undefined>;
+  cookies?: Record<string, string | undefined>;
+  method: string;
   user?: RequestUser;
+  authOrigin?: "bearer" | "cookie";
 }
 
 /**
  * Global bearer-JWT guard: skips @Public() routes, verifies the ES256 access
  * token, rejects denylisted sessions (`sess:deny:{sid}`), and attaches the
- * claims to `request.user`.
+ * claims to `request.user`. The token is read from the `Authorization: Bearer`
+ * header (mobile/API clients) or, when absent, the `hh_access` httpOnly
+ * cookie (admin-web) — `request.authOrigin` records which, so CsrfGuard can
+ * enforce the double-submit check only for cookie-authenticated requests.
  *
  * User status is NOT checked per request — roles/status ride in the token and
  * revocation flows denylist the session ids. TODO(admin phase): the suspension
@@ -64,13 +71,21 @@ export class JwtAuthGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<GuardedRequest>();
     const header = request.headers["authorization"];
-    if (typeof header !== "string" || !header.startsWith("Bearer ")) {
+    let token: string | undefined;
+    let origin: "bearer" | "cookie" = "bearer";
+    if (typeof header === "string" && header.startsWith("Bearer ")) {
+      token = header.slice("Bearer ".length);
+    } else if (typeof request.cookies?.[ACCESS_COOKIE] === "string") {
+      token = request.cookies[ACCESS_COOKIE];
+      origin = "cookie";
+    }
+    if (!token) {
       throw new UnauthorizedException({ code: ERROR_CODES.AUTH_UNAUTHORIZED });
     }
 
     let claims: AccessTokenClaims;
     try {
-      claims = await verifyAccessToken(header.slice("Bearer ".length), this.options.jwtPublicKeyPem);
+      claims = await verifyAccessToken(token, this.options.jwtPublicKeyPem);
     } catch {
       throw new UnauthorizedException({ code: ERROR_CODES.AUTH_TOKEN_EXPIRED });
     }
@@ -80,6 +95,30 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     request.user = { userId: claims.sub, sessionId: claims.sid, roles: claims.roles };
+    request.authOrigin = origin;
+    return true;
+  }
+}
+
+/**
+ * Double-submit CSRF check for cookie-authenticated (admin-web) requests.
+ * Bearer-token requests are exempt — CSRF targets ambient browser
+ * credentials, which bearer tokens are not. Safe methods are exempt too.
+ */
+@Injectable()
+export class CsrfGuard implements CanActivate {
+  private static readonly SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest<GuardedRequest>();
+    if (request.authOrigin !== "cookie" || CsrfGuard.SAFE_METHODS.has(request.method)) {
+      return true;
+    }
+    const header = request.headers[CSRF_HEADER];
+    const cookie = request.cookies?.[CSRF_COOKIE];
+    if (typeof header !== "string" || !cookie || header !== cookie) {
+      throw new ForbiddenException({ code: ERROR_CODES.AUTH_FORBIDDEN, reason: "csrf_mismatch" });
+    }
     return true;
   }
 }

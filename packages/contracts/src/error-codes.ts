@@ -46,6 +46,10 @@ export const ERROR_CODES = {
   CATALOG_UNKNOWN_NUTRIENT: "catalog.unknown_nutrient",
   /** Food is not present in the active dataset release. */
   FOOD_NOT_AVAILABLE: "food.not_available",
+  /** Attempted to change/suspend/delete one's own super_admin account unsafely. */
+  ADMIN_SELF_ACTION_BLOCKED: "admin.self_action_blocked",
+  /** Merge/target food is not eligible (wrong state or same as source). */
+  ADMIN_MERGE_INVALID: "admin.merge_invalid",
   /** Quantity could not be converted to grams (unknown density/portion). */
   FOOD_UNIT_CONVERSION_FAILED: "food.unit_conversion_failed",
   /** IP/route rate limit exceeded (throttler). */

@@ -29,6 +29,8 @@ export interface ObjectStorage {
   presignedPutUrl(bucket: Bucket, key: string, opts: PresignPutOptions): Promise<string>;
   presignedGetUrl(bucket: Bucket, key: string, opts: PresignGetOptions): Promise<string>;
   ensureBuckets(): Promise<void>;
+  /** Lightweight connectivity check for health endpoints — one HEAD call. */
+  ping(): Promise<void>;
 }
 
 /** Nest injection token for the ObjectStorage port. */

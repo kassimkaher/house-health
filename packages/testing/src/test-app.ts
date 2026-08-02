@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { type INestApplication, type Type } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { EMAIL_PORT } from "@hh/notifications";
+import cookieParser from "cookie-parser";
 import { RecordingEmailProvider } from "./recording-email.provider";
 
 let migrated = false;
@@ -48,6 +49,7 @@ export async function createTestApp(rootModule: Type<unknown>): Promise<TestAppC
     .compile();
   const app = moduleRef.createNestApplication();
   app.setGlobalPrefix("api/v1", { exclude: ["health/live", "health/ready"] });
+  app.use(cookieParser());
   await app.init();
   return { app, email };
 }

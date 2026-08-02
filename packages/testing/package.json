@@ -11,6 +11,7 @@
   "devDependencies": {
     "@hh/eslint-config": "workspace:*",
     "@hh/tsconfig": "workspace:*",
+    "@types/cookie-parser": "1.4.10",
     "@types/node": "^22.10.0",
     "eslint": "^9.20.0",
     "typescript": "^5.7.0"
@@ -22,6 +23,7 @@
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
+    "cookie-parser": "1.4.7",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   }

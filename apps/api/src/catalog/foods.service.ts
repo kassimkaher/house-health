@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -312,6 +313,97 @@ export class FoodsService {
       await tx.barcode.updateMany({ where: { foodId: id, isActive: true }, data: { isActive: false } });
     });
     await this.auditFood(actorId, "food.delete", id, { slug: food.slug }, null);
+  }
+
+  /**
+   * Candidate duplicate pairs among active (non-deleted, non-archived) foods,
+   * ranked by name similarity. Editorial trigram indexes on `foods` do the
+   * heavy lifting; this never touches the published food_versions table.
+   */
+  async findDuplicates(threshold: number, limit: number): Promise<
+    Array<{ foodIdA: string; foodIdB: string; nameEnA: string; nameEnB: string; similarity: number }>
+  > {
+    return this.prisma.$queryRaw<
+      Array<{ foodIdA: string; foodIdB: string; nameEnA: string; nameEnB: string; similarity: number }>
+    >`
+      SELECT a.id AS "foodIdA", b.id AS "foodIdB", a.name_en AS "nameEnA", b.name_en AS "nameEnB",
+             GREATEST(similarity(a.name_ar_norm, b.name_ar_norm), similarity(a.name_en_norm, b.name_en_norm)) AS similarity
+      FROM foods a
+      JOIN foods b ON a.id < b.id
+        AND (a.name_ar_norm % b.name_ar_norm OR a.name_en_norm % b.name_en_norm)
+      WHERE a.deleted_at IS NULL AND b.deleted_at IS NULL
+        AND a.review_status <> 'archived' AND b.review_status <> 'archived'
+        AND GREATEST(similarity(a.name_ar_norm, b.name_ar_norm), similarity(a.name_en_norm, b.name_en_norm)) >= ${threshold}
+      ORDER BY similarity DESC
+      LIMIT ${limit}`;
+  }
+
+  /**
+   * Merge `sourceFoodId` into `targetFoodId`: aliases/portions are copied
+   * (duplicates skipped via unique constraints), barcodes and source records
+   * are reassigned where possible, and the source is archived — never hard
+   * deleted, so diary/recipe references and provenance survive.
+   */
+  async merge(sourceFoodId: string, targetFoodId: string, notes: string | undefined, actorId: string): Promise<AdminFood> {
+    if (sourceFoodId === targetFoodId) {
+      throw new BadRequestException({ code: ERROR_CODES.ADMIN_MERGE_INVALID });
+    }
+    const [source, target] = await Promise.all([this.get(sourceFoodId), this.get(targetFoodId)]);
+    if (target.deletedAt || target.reviewStatus === "archived") {
+      throw new UnprocessableEntityException({ code: ERROR_CODES.ADMIN_MERGE_INVALID, reason: "target_not_eligible" });
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const alias of source.aliases) {
+        try {
+          await tx.foodAlias.create({
+            data: { foodId: targetFoodId, alias: alias.alias, kind: alias.kind, locale: alias.locale, source: `merge:${sourceFoodId}` },
+          });
+        } catch (err) {
+          if ((err as { code?: string }).code !== "P2002") throw err;
+        }
+      }
+      await tx.barcode.updateMany({
+        where: { foodId: sourceFoodId, isActive: true },
+        data: { foodId: targetFoodId },
+      });
+      for (const portion of source.portions) {
+        const exists = await tx.foodPortion.findFirst({ where: { foodId: targetFoodId, labelEn: portion.labelEn } });
+        if (!exists) {
+          await tx.foodPortion.create({
+            data: {
+              foodId: targetFoodId,
+              labelAr: portion.labelAr,
+              labelEn: portion.labelEn,
+              grams: portion.grams,
+              source: portion.source,
+              confidence: portion.confidence,
+              locale: portion.locale,
+              reviewStatus: portion.reviewStatus,
+            },
+          });
+        }
+      }
+      for (const record of source.sourceRecords) {
+        try {
+          await tx.foodSourceRecord.update({ where: { id: record.id }, data: { foodId: targetFoodId } });
+        } catch (err) {
+          if ((err as { code?: string }).code !== "P2002") throw err; // provider/externalId collision — leave on source
+        }
+      }
+      await tx.food.update({
+        where: { id: sourceFoodId },
+        data: {
+          reviewStatus: "archived",
+          publicationStatus: "deprecated",
+          reviewNotes: `merged_into:${target.slug}${notes ? ` — ${notes}` : ""}`,
+          reviewedById: actorId,
+          reviewedAt: new Date(),
+        },
+      });
+    });
+    await this.auditFood(actorId, "food.merge", targetFoodId, { sourceFoodId, sourceSlug: source.slug }, { notes: notes ?? null });
+    return this.get(targetFoodId);
   }
 
   private async auditFood(

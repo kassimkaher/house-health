@@ -23,9 +23,20 @@ export {
 } from "./decorators";
 export {
   AUTH_GUARD_OPTIONS,
+  CsrfGuard,
   JwtAuthGuard,
   PermissionsGuard,
   REDIS,
   type AuthGuardOptions,
   type RedisLike,
 } from "./guards";
+export {
+  ACCESS_COOKIE,
+  CSRF_COOKIE,
+  CSRF_HEADER,
+  REFRESH_COOKIE,
+  clearAuthCookies,
+  generateCsrfToken,
+  setAuthCookies,
+  type CookieResponseLike,
+} from "./cookies";

@@ -46,6 +46,13 @@ export class S3ObjectStorage implements ObjectStorage {
     return `${this.prefix}-${bucket}`;
   }
 
+  async ping(): Promise<void> {
+    await this.client.send(
+      new HeadBucketCommand({ Bucket: this.bucketName("food-images") }),
+      { requestTimeout: 2000 },
+    );
+  }
+
   async ensureBuckets(): Promise<void> {
     for (const bucket of ALL_BUCKETS) {
       const name = this.bucketName(bucket);

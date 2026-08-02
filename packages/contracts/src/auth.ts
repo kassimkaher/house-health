@@ -34,7 +34,9 @@ export const loginSchema = z.object({
 export type LoginDto = z.infer<typeof loginSchema>;
 
 export const refreshSchema = z.object({
-  refreshToken: z.string().min(1).max(512),
+  // Optional: cookie-mode clients (?client=web) rely on the hh_refresh cookie
+  // instead of sending the token in the body.
+  refreshToken: z.string().min(1).max(512).optional(),
 });
 export type RefreshDto = z.infer<typeof refreshSchema>;
 

@@ -5,5 +5,6 @@ export * from "./catalog";
 export * from "./search";
 export * from "./consumption";
 export * from "./reminders";
+export * from "./admin";
 export { ZodValidationPipe } from "./zod-validation.pipe";
 export * from "./ai";

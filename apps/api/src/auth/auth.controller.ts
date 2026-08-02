@@ -9,11 +9,21 @@ import {
   Post,
   Query,
   Req,
+  Res,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
-import { CurrentUser, Public, type RequestUser } from "@hh/auth";
+import { APP_CONFIG, type AppConfig } from "@hh/config";
 import {
+  CurrentUser,
+  Public,
+  clearAuthCookies,
+  setAuthCookies,
+  type RequestUser,
+} from "@hh/auth";
+import {
+  ERROR_CODES,
   ZodValidationPipe,
   forgotPasswordSchema,
   loginSchema,
@@ -31,7 +41,7 @@ import {
   type UserView,
   type VerifyEmailDto,
 } from "@hh/contracts";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { AuthService, type FORGOT_RESPONSE, type REGISTER_RESPONSE } from "./auth.service";
 import { OidcService } from "./oidc.service";
 import { SessionService, type DeviceMeta } from "./session.service";
@@ -59,7 +69,18 @@ export class AuthController {
     @Inject(OidcService) private readonly oidc: OidcService,
     @Inject(SessionService) private readonly sessions: SessionService,
     @Inject(TokenService) private readonly tokens: TokenService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
+
+  /** `?client=web` opts into httpOnly cookie issuance (admin-web); mobile/API
+   *  clients omit it and keep reading tokens from the JSON body. */
+  private maybeSetCookies(res: Response, client: string | undefined, tokens: AuthTokensView): void {
+    if (client !== "web") return;
+    setAuthCookies(res, tokens, {
+      secure: this.config.nodeEnv === "production",
+      refreshTtlDays: this.config.refreshTokenTtlDays,
+    });
+  }
 
   @Public()
   @Post("register")
@@ -83,15 +104,19 @@ export class AuthController {
   @Public()
   @Post("login")
   @HttpCode(200)
-  @ApiOperation({ summary: "Email + password login; creates a device session" })
-  login(
+  @ApiOperation({ summary: "Email + password login; creates a device session. ?client=web also sets httpOnly cookies." })
+  async login(
     @Body(new ZodValidationPipe(loginSchema)) dto: LoginDto,
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Query("client") client?: string,
   ): Promise<AuthTokensView & { user: UserView }> {
     const extra: { deviceName?: string; deviceId?: string } = {};
     if (dto.deviceName !== undefined) extra.deviceName = dto.deviceName;
     if (dto.deviceId !== undefined) extra.deviceId = dto.deviceId;
-    return this.auth.login(dto, requestMeta(req, extra));
+    const result = await this.auth.login(dto, requestMeta(req, extra));
+    this.maybeSetCookies(res, client, result);
+    return result;
   }
 
   @Public()
@@ -100,8 +125,17 @@ export class AuthController {
   @ApiOperation({ summary: "Rotate a refresh token (reuse revokes the family)" })
   async refresh(
     @Body(new ZodValidationPipe(refreshSchema)) dto: RefreshDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Query("client") client?: string,
   ): Promise<AuthTokensView> {
-    const result = await this.tokens.rotate(dto.refreshToken);
+    // Cookie-mode clients may omit the body token and rely on the cookie.
+    const refreshToken: string | undefined = dto.refreshToken || req.cookies?.["hh_refresh"];
+    if (!refreshToken) {
+      throw new UnauthorizedException({ code: ERROR_CODES.AUTH_TOKEN_INVALID });
+    }
+    const result = await this.tokens.rotate(refreshToken);
+    this.maybeSetCookies(res, client, result.tokens);
     return result.tokens;
   }
 
@@ -109,12 +143,17 @@ export class AuthController {
   @HttpCode(204)
   @ApiBearerAuth()
   @ApiOperation({ summary: "Revoke the current session" })
-  async logout(@CurrentUser() user: RequestUser, @Req() req: Request): Promise<void> {
+  async logout(
+    @CurrentUser() user: RequestUser,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
     await this.sessions.revokeSession(user.sessionId, "logout", {
       actorId: user.userId,
       actorRoles: user.roles,
       ip: typeof req.ip === "string" ? req.ip : undefined,
     });
+    clearAuthCookies(res);
   }
 
   @Public()

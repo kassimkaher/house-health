@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { loadConfig } from "@hh/config";
+import cookieParser from "cookie-parser";
 import { AppModule } from "./app.module";
 
 async function bootstrap(): Promise<void> {
@@ -10,6 +11,7 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix("api/v1", { exclude: ["health/live", "health/ready"] });
+  app.use(cookieParser());
   app.enableCors({
     origin: [config.adminWebOrigin, ...config.corsOrigins],
     credentials: true,

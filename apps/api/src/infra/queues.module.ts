@@ -5,6 +5,7 @@ import { QUEUES, QUEUE_PREFIX } from "@hh/pipeline";
 
 export const IMPORTS_QUEUE = "IMPORTS_QUEUE";
 export const CATALOG_QUEUE = "CATALOG_QUEUE";
+export const REMINDERS_QUEUE = "REMINDERS_QUEUE";
 
 function makeQueue(name: string, config: AppConfig): Queue {
   return new Queue(name, {
@@ -19,7 +20,11 @@ function makeQueue(name: string, config: AppConfig): Queue {
   });
 }
 
-/** Queue PRODUCERS only — processors live exclusively in apps/worker. */
+/**
+ * Queue PRODUCERS only — processors live exclusively in apps/worker.
+ * REMINDERS_QUEUE is registered here read/monitoring-only (the worker owns
+ * scheduling); BullMQ Queue clients are safe to share across processes.
+ */
 @Global()
 @Module({
   providers: [
@@ -34,8 +39,13 @@ function makeQueue(name: string, config: AppConfig): Queue {
       useFactory: (config: AppConfig) => makeQueue(QUEUES.catalog, config),
     },
     {
+      provide: REMINDERS_QUEUE,
+      inject: [APP_CONFIG],
+      useFactory: (config: AppConfig) => makeQueue(QUEUES.reminders, config),
+    },
+    {
       provide: "QUEUE_SHUTDOWN",
-      inject: [IMPORTS_QUEUE, CATALOG_QUEUE],
+      inject: [IMPORTS_QUEUE, CATALOG_QUEUE, REMINDERS_QUEUE],
       useFactory: (...queues: Queue[]): OnApplicationShutdown => ({
         onApplicationShutdown: async () => {
           await Promise.all(queues.map((q) => q.close()));
@@ -43,6 +53,6 @@ function makeQueue(name: string, config: AppConfig): Queue {
       }),
     },
   ],
-  exports: [IMPORTS_QUEUE, CATALOG_QUEUE],
+  exports: [IMPORTS_QUEUE, CATALOG_QUEUE, REMINDERS_QUEUE],
 })
 export class QueuesModule {}

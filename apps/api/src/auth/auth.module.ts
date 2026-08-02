@@ -18,6 +18,6 @@ import { TokenService } from "./token.service";
     AuditService,
     { provide: EMAIL_PORT, useClass: LogEmailProvider },
   ],
-  exports: [AuditService],
+  exports: [AuditService, SessionService],
 })
 export class AuthModule {}

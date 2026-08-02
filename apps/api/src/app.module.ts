@@ -1,9 +1,11 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
-import { AUTH_GUARD_OPTIONS, JwtAuthGuard, PermissionsGuard, REDIS } from "@hh/auth";
+import { AUTH_GUARD_OPTIONS, CsrfGuard, JwtAuthGuard, PermissionsGuard, REDIS } from "@hh/auth";
 import { APP_CONFIG, type AppConfig } from "@hh/config";
 import type Redis from "ioredis";
+import { AdminOpsModule } from "./admin-ops/admin-ops.module";
+import { UsersAdminModule } from "./admin-users/users.admin.module";
 import { AuthModule } from "./auth/auth.module";
 import { CatalogModule } from "./catalog/catalog.module";
 import { ConsumptionModule } from "./consumption/consumption.module";
@@ -49,6 +51,8 @@ import { RedisThrottlerStorage } from "./infra/throttler-redis.storage";
     ConsumptionModule,
     RemindersModule,
     SummaryModule,
+    UsersAdminModule,
+    AdminOpsModule,
   ],
   controllers: [HealthController],
   providers: [
@@ -57,9 +61,10 @@ import { RedisThrottlerStorage } from "./infra/throttler-redis.storage";
       useFactory: (config: AppConfig) => ({ jwtPublicKeyPem: config.jwtPublicKeyPem }),
       inject: [APP_CONFIG],
     },
-    // Guard order matters: rate limiting → authentication → authorization.
+    // Guard order matters: rate limiting → authentication → CSRF → authorization.
     { provide: APP_GUARD, useClass: ApiThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: CsrfGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
 })
