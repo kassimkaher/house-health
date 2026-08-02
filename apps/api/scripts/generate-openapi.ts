@@ -12,7 +12,11 @@ import { AppModule } from "../src/app.module";
  * after an API change.
  */
 async function main(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { logger: false });
+  // NOT `logger: false` — that silences Nest's own bootstrap-failure log
+  // line too, so a DI/config error here exits with no output at all,
+  // making failures here nearly unreproducible-looking (learned the hard
+  // way: a missing DATABASE_URL crashed this with zero stderr).
+  const app = await NestFactory.create(AppModule, { logger: ["error", "warn"] });
   const config = new DocumentBuilder()
     .setTitle("Health House API")
     .setDescription("Nutrition & calorie platform — public /api/v1 and admin /api/v1/admin")

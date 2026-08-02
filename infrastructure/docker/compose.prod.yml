@@ -1,0 +1,50 @@
+# Production overlay. Combine with compose.base.yml:
+#   docker compose -p hh-prod -f compose.base.yml -f compose.prod.yml \
+#     --env-file .env.production up -d
+#
+# Resource limits assume an 8 GB Contabo instance running prod alongside
+# staging (compose.staging.yml halves these). Tune shared_buffers in
+# compose.base.yml's postgres command if the instance size differs.
+
+services:
+  postgres:
+    mem_limit: 2g
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  redis:
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  minio:
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  api:
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  worker:
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  admin-web:
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  nginx:
+    mem_limit: 128m
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }

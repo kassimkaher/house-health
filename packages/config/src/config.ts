@@ -4,6 +4,17 @@ import { z } from "zod";
 /** Injection token under which apps provide the loaded AppConfig. */
 export const APP_CONFIG = "APP_CONFIG";
 
+/**
+ * Docker Compose (and most .env-file loaders) set a variable to an EMPTY
+ * STRING when its value is left blank — they never omit the key entirely.
+ * `.optional()` alone only accepts `undefined`, so a deployer following
+ * ".env.example"'s "leave blank to disable" instructions would crash the
+ * app at boot. This treats "" the same as "unset" before validation.
+ */
+function optionalString<T extends z.ZodTypeAny>(schema: T) {
+  return z.preprocess((v) => (v === "" ? undefined : v), schema.optional());
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   API_PORT: z.coerce.number().int().min(1).max(65535).default(3100),
@@ -13,20 +24,20 @@ const envSchema = z.object({
   ADMIN_WEB_ORIGIN: z.string().url().default("http://localhost:3002"),
   /** Comma-separated list of additional allowed CORS origins. */
   CORS_ORIGINS: z.string().default(""),
-  JWT_PRIVATE_KEY_PEM: z.string().min(1).optional(),
-  JWT_PUBLIC_KEY_PEM: z.string().min(1).optional(),
+  JWT_PRIVATE_KEY_PEM: optionalString(z.string().min(1)),
+  JWT_PUBLIC_KEY_PEM: optionalString(z.string().min(1)),
   ACCESS_TOKEN_TTL_SEC: z.coerce.number().int().positive().default(600),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
-  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
-  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
-  GOOGLE_REDIRECT_URI: z.string().url().optional(),
+  GOOGLE_CLIENT_ID: optionalString(z.string().min(1)),
+  GOOGLE_CLIENT_SECRET: optionalString(z.string().min(1)),
+  GOOGLE_REDIRECT_URI: optionalString(z.string().url()),
   S3_ENDPOINT: z.string().url().default("http://127.0.0.1:9100"),
   S3_ACCESS_KEY: z.string().default("hh_minio"),
   S3_SECRET_KEY: z.string().default("hh_dev_minio_password"),
   S3_BUCKET_PREFIX: z.string().regex(/^[a-z0-9-]+$/).default("hh"),
   OTEL_ENABLED: z.coerce.boolean().default(false),
-  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
-  ERROR_TRACKING_DSN: z.string().min(1).optional(),
+  OTEL_EXPORTER_OTLP_ENDPOINT: optionalString(z.string().url()),
+  ERROR_TRACKING_DSN: optionalString(z.string().min(1)),
 });
 
 export interface GoogleOidcConfig {

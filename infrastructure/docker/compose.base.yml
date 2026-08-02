@@ -1,0 +1,208 @@
+# Shared service topology for staging/production on a single Contabo host.
+# Environment-specific values (image tags, resource limits, restart
+# policies, domains) live in compose.staging.yml / compose.prod.yml overlays:
+#
+#   docker compose -p hh-prod \
+#     -f infrastructure/docker/compose.base.yml \
+#     -f infrastructure/docker/compose.prod.yml \
+#     --env-file infrastructure/docker/.env.production \
+#     up -d
+#
+# Local dev uses compose.dev.yml instead (data services only; apps run on
+# the host via `pnpm dev`) — this file is never used for local development.
+
+name: health-house
+
+x-app-env: &app-env
+  NODE_ENV: ${NODE_ENV:-production}
+  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  REDIS_URL: redis://redis:6379
+  APP_BASE_URL: ${API_PUBLIC_URL}
+  ADMIN_WEB_ORIGIN: ${ADMIN_WEB_PUBLIC_URL}
+  CORS_ORIGINS: ${CORS_ORIGINS:-}
+  JWT_PRIVATE_KEY_PEM: ${JWT_PRIVATE_KEY_PEM}
+  JWT_PUBLIC_KEY_PEM: ${JWT_PUBLIC_KEY_PEM}
+  ACCESS_TOKEN_TTL_SEC: ${ACCESS_TOKEN_TTL_SEC:-600}
+  REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+  # MUST be the publicly reachable s3.<domain> URL, not the internal
+  # `minio:9000` service name: presigned PUT/GET URLs are signed against
+  # this host, and a browser/mobile client resolving `minio` would fail.
+  # Nginx proxies s3.<domain> back to the minio service (see nginx/conf.d),
+  # so this single endpoint serves both internal app calls and external
+  # presigned-URL consumers correctly.
+  S3_ENDPOINT: ${S3_PUBLIC_URL}
+  S3_ACCESS_KEY: ${MINIO_ROOT_USER}
+  S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+  S3_BUCKET_PREFIX: ${S3_BUCKET_PREFIX:-hh}
+  OTEL_ENABLED: ${OTEL_ENABLED:-false}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+  ERROR_TRACKING_DSN: ${ERROR_TRACKING_DSN:-}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - max_connections=100
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_data:/data
+    networks: [data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    networks: [data, edge]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/migrate.Dockerfile
+    image: health-house/migrate:${IMAGE_TAG:-latest}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    networks: [data]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # One-shot: `docker compose run --rm migrate` in the deploy script.
+    # Never part of `up` — apps never migrate on boot (docs/runbooks/deploy.md).
+    profiles: ["tools"]
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/api.Dockerfile
+    image: health-house/api:${IMAGE_TAG:-latest}
+    environment:
+      <<: *app-env
+      API_PORT: 3100
+    networks: [data, edge]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3100/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/worker.Dockerfile
+    image: health-house/worker:${IMAGE_TAG:-latest}
+    environment: *app-env
+    networks: [data]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  admin-web:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/admin-web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${API_PUBLIC_URL}/api/v1
+    image: health-house/admin-web:${IMAGE_TAG:-latest}
+    networks: [edge]
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    volumes:
+      - ../nginx/conf.d:/etc/nginx/conf.d:ro
+      - ../nginx/snippets:/etc/nginx/snippets:ro
+      - certbot_certs:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    networks: [edge]
+    depends_on:
+      api:
+        condition: service_started
+      admin-web:
+        condition: service_started
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    networks: [edge]
+    profiles: ["tools"]
+
+networks:
+  edge:
+    driver: bridge
+  data:
+    driver: bridge
+    internal: true
+
+volumes:
+  pg_data:
+  redis_data:
+  minio_data:
+  certbot_certs:
+  certbot_webroot:

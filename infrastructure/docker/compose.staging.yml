@@ -1,0 +1,37 @@
+# Staging overlay — a fully separate Compose project (different -p name,
+# different volumes/networks) sharing the same Contabo host as production.
+# Half the resource limits and single-concurrency worker so a staging import
+# job can't starve production I/O:
+#   docker compose -p hh-staging -f compose.base.yml -f compose.staging.yml \
+#     --env-file .env.staging up -d
+
+services:
+  postgres:
+    mem_limit: 1g
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - max_connections=50
+
+  redis:
+    mem_limit: 256m
+
+  minio:
+    mem_limit: 512m
+
+  api:
+    mem_limit: 512m
+
+  worker:
+    mem_limit: 512m
+    # BullMQ Worker concurrency is set in code (apps/worker/src/worker.module.ts);
+    # staging intentionally runs the same image — the resource *limit* here is
+    # the isolation boundary, not a separate low-concurrency build.
+
+  admin-web:
+    mem_limit: 256m
+
+  nginx:
+    mem_limit: 64m

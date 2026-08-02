@@ -31,7 +31,15 @@ fi
 
 if [ "${SKIP_OPENAPI:-0}" != "1" ] && [ -f docs/openapi.json ]; then
   echo "==> openapi drift check"
-  pnpm openapi
+  # generate-openapi.ts only needs to boot the Nest DI graph and introspect
+  # routes/schemas — it never queries the DB or Redis — but the config
+  # loader requires DATABASE_URL/REDIS_URL to be well-formed. The
+  # integration test stack (started above) is already torn down by this
+  # point, so provide throwaway values rather than depend on whatever the
+  # caller's shell happens to have exported.
+  DATABASE_URL="${DATABASE_URL:-postgresql://ci:ci@127.0.0.1:5999/ci_openapi_gen}" \
+  REDIS_URL="${REDIS_URL:-redis://127.0.0.1:5999}" \
+    pnpm openapi
   git diff --exit-code docs/openapi.json \
     || { echo "OpenAPI artifact drifted — commit the regenerated docs/openapi.json"; exit 1; }
 fi
