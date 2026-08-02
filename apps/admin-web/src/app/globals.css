@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+:root {
+  --hh-bg: #f8fafc;
+  --hh-bg-elevated: #ffffff;
+  --hh-border: #e2e8f0;
+  --hh-text: #0f172a;
+  --hh-text-muted: #64748b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --hh-bg: #0b1120;
+    --hh-bg-elevated: #131c2e;
+    --hh-border: #263449;
+    --hh-text: #e2e8f0;
+    --hh-text-muted: #94a3b8;
+  }
+}
+
+html,
+body {
+  background: var(--hh-bg);
+  color: var(--hh-text);
+}
+
+* {
+  border-color: var(--hh-border);
+}
