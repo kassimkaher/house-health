@@ -23,4 +23,10 @@ export S3_ENDPOINT="http://127.0.0.1:9002"
 export S3_ACCESS_KEY="hh_test"
 export S3_SECRET_KEY="hh_test_secret"
 
+# --concurrency=1 (baked into the root "test:integration" script): the
+# packages/pipeline and apps/api integration suites share one Postgres
+# instance above. Running their beforeAll TRUNCATE/INSERT sequences
+# concurrently can deadlock two suites against each other (seen in practice —
+# PG error 40P01). Sequential execution trades a few seconds of wall-clock
+# time for determinism.
 pnpm test:integration

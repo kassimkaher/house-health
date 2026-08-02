@@ -2,7 +2,8 @@ import { Module, type OnApplicationShutdown, type OnModuleInit, Inject, Injectab
 import { Queue, Worker } from "bullmq";
 import { APP_CONFIG, loadConfig, type AppConfig } from "@hh/config";
 import { prisma } from "@hh/database";
-import { LogPushProvider } from "@hh/notifications";
+import { ERROR_TRACKING_PORT, LogErrorTrackingProvider, LogPushProvider, type ErrorTrackingPort } from "@hh/notifications";
+import pino from "pino";
 import {
   ImportRunner,
   QUEUES,
@@ -14,6 +15,8 @@ import {
   type ReleaseBuildJobData,
 } from "@hh/pipeline";
 import { OBJECT_STORAGE, S3ObjectStorage, type ObjectStorage } from "@hh/storage";
+
+const logger = pino({ level: process.env.NODE_ENV === "test" ? "silent" : "info" });
 
 /**
  * Registers BullMQ processors. The api enqueues; only this process consumes.
@@ -27,6 +30,7 @@ export class QueueWorkers implements OnModuleInit, OnApplicationShutdown {
   constructor(
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    @Inject(ERROR_TRACKING_PORT) private readonly errorTracking: ErrorTrackingPort,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -92,8 +96,22 @@ export class QueueWorkers implements OnModuleInit, OnApplicationShutdown {
       ),
     );
     for (const worker of this.workers) {
+      worker.on("completed", (job) => {
+        logger.debug({ queue: job.queueName, jobId: job.id, name: job.name }, "job completed");
+      });
       worker.on("failed", (job, err) => {
-        console.error(`[worker] job ${job?.queueName}/${job?.id} failed: ${err.message}`);
+        const exhausted = job !== undefined && job.attemptsMade >= (job.opts.attempts ?? 1);
+        logger.error(
+          { queue: job?.queueName, jobId: job?.id, name: job?.name, attemptsMade: job?.attemptsMade, exhausted, err },
+          "job failed",
+        );
+        // Only capture once retries are exhausted — a job that will retry
+        // and succeed isn't an incident worth alerting on.
+        if (exhausted) {
+          this.errorTracking.captureException(err, {
+            tags: { queue: job.queueName, jobId: String(job.id ?? ""), jobName: job.name },
+          });
+        }
       });
     }
   }
@@ -119,6 +137,7 @@ export class QueueWorkers implements OnModuleInit, OnApplicationShutdown {
           bucketPrefix: config.s3.bucketPrefix,
         }),
     },
+    { provide: ERROR_TRACKING_PORT, useClass: LogErrorTrackingProvider },
     QueueWorkers,
   ],
 })

@@ -26,6 +26,9 @@ const config: AppConfig = {
   refreshTokenTtlDays: 30,
   google: null,
   s3: { endpoint: "http://127.0.0.1:9100", accessKey: "x", secretKey: "x", bucketPrefix: "hh-test" },
+  otelEnabled: false,
+  otelExporterOtlpEndpoint: null,
+  errorTrackingDsn: null,
 };
 
 interface MockPrisma {

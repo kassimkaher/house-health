@@ -7,3 +7,9 @@ export {
   type PushPayload,
   type PushPort,
 } from "./push";
+export {
+  ERROR_TRACKING_PORT,
+  LogErrorTrackingProvider,
+  type ErrorContext,
+  type ErrorTrackingPort,
+} from "./error-tracking";

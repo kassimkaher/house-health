@@ -29,7 +29,17 @@
   targets ambient browser credentials specifically.
 - **Security misconfiguration**: environment validation fails fast and
   loudly (`packages/config`) rather than falling back to insecure defaults
-  in production; Swagger UI is disabled outside `development`/`test`.
+  in production; Swagger UI is disabled outside `development`/`test`;
+  `helmet` sets standard secure headers (`X-Frame-Options`,
+  `X-Content-Type-Options`, cross-origin resource policy, etc.) on every
+  response.
+- **Unhandled errors never leak internals**: a global exception filter
+  (`AllExceptionsFilter`) guarantees every non-`HttpException` (Prisma
+  errors, programming errors) returns a generic `internal_error` body —
+  stack traces never reach the client. Every 5xx is forwarded to the
+  error-tracking port (`ERROR_TRACKING_PORT`, log-based by default,
+  swappable for a real APM via `ERROR_TRACKING_DSN`) and logged with full
+  detail server-side only.
 
 ## Rate limiting
 
@@ -54,14 +64,21 @@ caught even from many source IPs.
 
 ## Account export & deletion
 
-- Soft delete only (`users.status = 'deleted'`, `deletedAt` set) — rows are
-  retained for audit/compliance rather than hard-deleted; email is freed for
-  re-registration via a partial unique index scoped to `deleted_at IS NULL`.
-  Self-deletion of the acting admin account is blocked at the service layer.
-- A dedicated data-export endpoint is not yet implemented in this phase; the
-  admin audit log and per-resource GET endpoints together allow assembling a
-  full export for a support request. Tracked as a phase-2 follow-up (see
-  final report "known limitations").
+- **Export**: `GET /me/export` returns everything the platform stores about
+  the caller — profile, weight history, calculation snapshots, recipes,
+  meal groups, diary entries, reminders, favorites, and session metadata —
+  in one JSON document. Self-service, no admin involvement required.
+- **Deletion**: `POST /me/delete` is a password-confirmed (re-enter password
+  + explicit `confirm: true`) soft delete (`users.status = 'deleted'`,
+  `deletedAt` set) — rows are retained for audit/compliance rather than
+  hard-deleted; email is freed for re-registration via a partial unique
+  index scoped to `deleted_at IS NULL`. Every active session is revoked
+  (denylisted) in the same request, so the caller's own token stops working
+  immediately. Admin-initiated deletion (`POST /admin/users/:id/delete`)
+  follows the identical soft-delete + revoke-all-sessions pattern; a
+  super_admin cannot delete their own account through the admin path
+  (self-lockout guard) but can through the self-service path (their own
+  password, their own explicit choice).
 
 ## Secrets
 

@@ -1,11 +1,13 @@
 import { Module } from "@nestjs/common";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { AUTH_GUARD_OPTIONS, CsrfGuard, JwtAuthGuard, PermissionsGuard, REDIS } from "@hh/auth";
 import { APP_CONFIG, type AppConfig } from "@hh/config";
+import { ERROR_TRACKING_PORT, LogErrorTrackingProvider } from "@hh/notifications";
 import type Redis from "ioredis";
 import { AdminOpsModule } from "./admin-ops/admin-ops.module";
 import { UsersAdminModule } from "./admin-users/users.admin.module";
+import { AccountModule } from "./account/account.module";
 import { AuthModule } from "./auth/auth.module";
 import { CatalogModule } from "./catalog/catalog.module";
 import { ConsumptionModule } from "./consumption/consumption.module";
@@ -16,18 +18,23 @@ import { RemindersModule } from "./reminders/reminders.module";
 import { SummaryModule } from "./summary/summary.module";
 import { QueuesModule } from "./infra/queues.module";
 import { StorageModule } from "./infra/storage.module";
+import { AllExceptionsFilter } from "./infra/all-exceptions.filter";
 import { HealthController } from "./health/health.controller";
 import { ApiThrottlerGuard } from "./infra/api-throttler.guard";
 import { AppConfigModule } from "./infra/config.module";
 import { DatabaseModule } from "./infra/database.module";
+import { LoggingModule } from "./infra/logging.module";
+import { MetricsModule } from "./infra/metrics.module";
 import { RedisModule } from "./infra/redis.module";
 import { RedisThrottlerStorage } from "./infra/throttler-redis.storage";
 
 @Module({
   imports: [
     AppConfigModule,
+    LoggingModule,
     DatabaseModule,
     RedisModule,
+    MetricsModule,
     ThrottlerModule.forRootAsync({
       inject: [APP_CONFIG, REDIS],
       useFactory: (config: AppConfig, redis: Redis) => ({
@@ -53,6 +60,7 @@ import { RedisThrottlerStorage } from "./infra/throttler-redis.storage";
     SummaryModule,
     UsersAdminModule,
     AdminOpsModule,
+    AccountModule,
   ],
   controllers: [HealthController],
   providers: [
@@ -61,6 +69,8 @@ import { RedisThrottlerStorage } from "./infra/throttler-redis.storage";
       useFactory: (config: AppConfig) => ({ jwtPublicKeyPem: config.jwtPublicKeyPem }),
       inject: [APP_CONFIG],
     },
+    { provide: ERROR_TRACKING_PORT, useClass: LogErrorTrackingProvider },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
     // Guard order matters: rate limiting → authentication → CSRF → authorization.
     { provide: APP_GUARD, useClass: ApiThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },

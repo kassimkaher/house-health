@@ -2,13 +2,14 @@
   "name": "@hh/pipeline",
   "version": "0.1.0",
   "private": true,
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "lint": "eslint src test",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:integration": "jest --config jest.integration.config.js --runInBand"
+    "test:integration": "jest --config jest.integration.config.js --runInBand",
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "@hh/contracts": "workspace:*",

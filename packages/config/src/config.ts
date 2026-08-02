@@ -24,6 +24,9 @@ const envSchema = z.object({
   S3_ACCESS_KEY: z.string().default("hh_minio"),
   S3_SECRET_KEY: z.string().default("hh_dev_minio_password"),
   S3_BUCKET_PREFIX: z.string().regex(/^[a-z0-9-]+$/).default("hh"),
+  OTEL_ENABLED: z.coerce.boolean().default(false),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
+  ERROR_TRACKING_DSN: z.string().min(1).optional(),
 });
 
 export interface GoogleOidcConfig {
@@ -52,6 +55,9 @@ export interface AppConfig {
     secretKey: string;
     bucketPrefix: string;
   };
+  otelEnabled: boolean;
+  otelExporterOtlpEndpoint: string | null;
+  errorTrackingDsn: string | null;
 }
 
 /** Thrown when environment validation fails; message lists every bad field. */
@@ -154,5 +160,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       secretKey: e.S3_SECRET_KEY,
       bucketPrefix: e.S3_BUCKET_PREFIX,
     },
+    otelEnabled: e.OTEL_ENABLED,
+    otelExporterOtlpEndpoint: e.OTEL_EXPORTER_OTLP_ENDPOINT ?? null,
+    errorTrackingDsn: e.ERROR_TRACKING_DSN ?? null,
   };
 }

@@ -1,0 +1,2169 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health/live": {
+      "get": {
+        "operationId": "HealthController_live",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "HealthController_ready",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/metrics": {
+      "get": {
+        "operationId": "MetricsController_scrape",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Metrics"
+        ]
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "operationId": "AuthController_register",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Register with email + password (always generic 201)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/verify-email": {
+      "post": {
+        "operationId": "AuthController_verifyEmail",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Consume an email-verification token",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Email + password login; creates a device session. ?client=web also sets httpOnly cookies.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "operationId": "AuthController_refresh",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Rotate a refresh token (reuse revokes the family)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Revoke the current session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/password/forgot": {
+      "post": {
+        "operationId": "AuthController_forgotPassword",
+        "parameters": [],
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "summary": "Request a password-reset email (always 202)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/password/reset": {
+      "post": {
+        "operationId": "AuthController_resetPassword",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Reset password with a single-use token; revokes all sessions",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/sessions": {
+      "get": {
+        "operationId": "AuthController_listSessions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List the caller's active device sessions",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/sessions/{id}": {
+      "delete": {
+        "operationId": "AuthController_revokeSession",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Revoke one of the caller's sessions (404 if not owned)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/google/start": {
+      "get": {
+        "operationId": "AuthController_googleStart",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Begin Google OIDC (503 when unconfigured)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/google/callback": {
+      "get": {
+        "operationId": "AuthController_googleCallback",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Google OIDC redirect target; issues tokens",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/me": {
+      "get": {
+        "operationId": "MeController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Current user profile view",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/me/profile": {
+      "get": {
+        "operationId": "ProfileController_getProfile",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Health/activity profile of the current user",
+        "tags": [
+          "profile"
+        ]
+      },
+      "patch": {
+        "operationId": "ProfileController_updateProfile",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update profile fields (partial)",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
+    "/me/weight": {
+      "get": {
+        "operationId": "ProfileController_listWeight",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Weight history (newest first)",
+        "tags": [
+          "profile"
+        ]
+      },
+      "post": {
+        "operationId": "ProfileController_upsertWeight",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add or replace the weigh-in for a date",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
+    "/me/weight/trend": {
+      "get": {
+        "operationId": "ProfileController_weightTrend",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Weight trend vs target",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
+    "/me/weight/{id}": {
+      "patch": {
+        "operationId": "ProfileController_updateWeight",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Edit a weigh-in",
+        "tags": [
+          "profile"
+        ]
+      },
+      "delete": {
+        "operationId": "ProfileController_deleteWeight",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a weigh-in",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
+    "/me/calc/estimate": {
+      "post": {
+        "operationId": "CalcController_estimate",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Compute calorie/macro targets from the profile; persists an immutable snapshot",
+        "tags": [
+          "calc"
+        ]
+      }
+    },
+    "/me/calc/current": {
+      "get": {
+        "operationId": "CalcController_current",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Active calculation snapshot (null when none computed yet)",
+        "tags": [
+          "calc"
+        ]
+      }
+    },
+    "/me/calc/history": {
+      "get": {
+        "operationId": "CalcController_history",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Past calculation snapshots, newest first",
+        "tags": [
+          "calc"
+        ]
+      }
+    },
+    "/admin/catalog/foods": {
+      "get": {
+        "operationId": "FoodsAdminController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List/search editorial foods (cursor-paginated)",
+        "tags": [
+          "admin/catalog"
+        ]
+      },
+      "post": {
+        "operationId": "FoodsAdminController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a food (draft, imported state)",
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/foods/{id}": {
+      "get": {
+        "operationId": "FoodsAdminController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Full editorial food record",
+        "tags": [
+          "admin/catalog"
+        ]
+      },
+      "patch": {
+        "operationId": "FoodsAdminController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a food (If-Match: rowVersion required)",
+        "tags": [
+          "admin/catalog"
+        ]
+      },
+      "delete": {
+        "operationId": "FoodsAdminController_remove",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Soft-delete a food (audit-preserving)",
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/foods/{id}/transition": {
+      "post": {
+        "operationId": "FoodsAdminController_transition",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Review-state transition (verify/reject/archive/...)",
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/foods/{id}/nutrients": {
+      "post": {
+        "operationId": "FoodsAdminController_setNutrients",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Replace the per-100g nutrient set",
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/foods/{id}/aliases": {
+      "post": {
+        "operationId": "FoodsAdminController_addAlias",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a search alias (dialect/transliteration/...)",
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/foods/{id}/aliases/{aliasId}": {
+      "delete": {
+        "operationId": "FoodsAdminController_removeAlias",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/foods/{id}/barcodes": {
+      "post": {
+        "operationId": "FoodsAdminController_addBarcode",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Attach a barcode (globally unique among active)",
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/foods/{id}/barcodes/{barcodeId}": {
+      "delete": {
+        "operationId": "FoodsAdminController_deactivateBarcode",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/foods/{id}/portions": {
+      "post": {
+        "operationId": "FoodsAdminController_addPortion",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a portion with verified gram weight",
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/foods/{id}/portions/{portionId}": {
+      "delete": {
+        "operationId": "FoodsAdminController_removePortion",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/categories": {
+      "get": {
+        "operationId": "TaxonomyAdminController_listCategories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Full category tree (flat, parentId links)",
+        "tags": [
+          "admin/catalog"
+        ]
+      },
+      "post": {
+        "operationId": "TaxonomyAdminController_createCategory",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/categories/{id}": {
+      "patch": {
+        "operationId": "TaxonomyAdminController_updateCategory",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/brands": {
+      "get": {
+        "operationId": "TaxonomyAdminController_listBrands",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/catalog"
+        ]
+      },
+      "post": {
+        "operationId": "TaxonomyAdminController_createBrand",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/brands/{id}": {
+      "patch": {
+        "operationId": "TaxonomyAdminController_updateBrand",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/nutrients": {
+      "get": {
+        "operationId": "TaxonomyAdminController_listNutrients",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/catalog"
+        ]
+      },
+      "post": {
+        "operationId": "TaxonomyAdminController_upsertNutrient",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create or update a nutrient definition by key",
+        "tags": [
+          "admin/catalog"
+        ]
+      }
+    },
+    "/admin/catalog/duplicates": {
+      "get": {
+        "operationId": "DuplicatesAdminController_find",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Candidate duplicate food pairs ranked by name similarity",
+        "tags": [
+          "admin/duplicates"
+        ]
+      }
+    },
+    "/admin/catalog/duplicates/merge": {
+      "post": {
+        "operationId": "DuplicatesAdminController_merge",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Merge source food into target; source is archived, never deleted",
+        "tags": [
+          "admin/duplicates"
+        ]
+      }
+    },
+    "/admin/imports": {
+      "post": {
+        "operationId": "ImportsAdminController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Upload a CSV/JSON dataset file and start an import job",
+        "tags": [
+          "admin/imports"
+        ]
+      },
+      "get": {
+        "operationId": "ImportsAdminController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List import jobs, newest first",
+        "tags": [
+          "admin/imports"
+        ]
+      }
+    },
+    "/admin/imports/{id}": {
+      "get": {
+        "operationId": "ImportsAdminController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/imports"
+        ]
+      }
+    },
+    "/admin/imports/{id}/errors.csv": {
+      "get": {
+        "operationId": "ImportsAdminController_errorReport",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Row-level error report as CSV",
+        "tags": [
+          "admin/imports"
+        ]
+      }
+    },
+    "/admin/imports/{id}/retry": {
+      "post": {
+        "operationId": "ImportsAdminController_retry",
+        "parameters": [],
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Retry a failed/cancelled job from its checkpoint",
+        "tags": [
+          "admin/imports"
+        ]
+      }
+    },
+    "/admin/imports/{id}/cancel": {
+      "post": {
+        "operationId": "ImportsAdminController_cancel",
+        "parameters": [],
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Request cancellation (honored between chunks)",
+        "tags": [
+          "admin/imports"
+        ]
+      }
+    },
+    "/admin/releases": {
+      "get": {
+        "operationId": "ReleasesAdminController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "All dataset releases, newest first",
+        "tags": [
+          "admin/releases"
+        ]
+      },
+      "post": {
+        "operationId": "ReleasesAdminController_build",
+        "parameters": [],
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Build a release candidate from verified foods (async, worker)",
+        "tags": [
+          "admin/releases"
+        ]
+      }
+    },
+    "/admin/releases/{id}": {
+      "get": {
+        "operationId": "ReleasesAdminController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/releases"
+        ]
+      }
+    },
+    "/admin/releases/{id}/compare/{otherId}": {
+      "get": {
+        "operationId": "ReleasesAdminController_compare",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Diff two releases (added/removed/changed food ids)",
+        "tags": [
+          "admin/releases"
+        ]
+      }
+    },
+    "/admin/releases/{id}/publish": {
+      "post": {
+        "operationId": "ReleasesAdminController_publish",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Atomically activate this release for the public API",
+        "tags": [
+          "admin/releases"
+        ]
+      }
+    },
+    "/admin/releases/{id}/rollback": {
+      "post": {
+        "operationId": "ReleasesAdminController_rollback",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Re-activate this (prior) release; current one becomes rolled_back",
+        "tags": [
+          "admin/releases"
+        ]
+      }
+    },
+    "/admin/releases/{id}/archive": {
+      "post": {
+        "operationId": "ReleasesAdminController_archive",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/releases"
+        ]
+      }
+    },
+    "/foods/search": {
+      "get": {
+        "operationId": "FoodsController_search",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Arabic-first food search (exact > prefix > full-text > fuzzy)",
+        "tags": [
+          "foods"
+        ]
+      }
+    },
+    "/foods/barcode/{code}": {
+      "get": {
+        "operationId": "FoodsController_barcode",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Exact barcode lookup",
+        "tags": [
+          "foods"
+        ]
+      }
+    },
+    "/foods/{idOrSlug}": {
+      "get": {
+        "operationId": "FoodsController_detail",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Full food detail from the active release",
+        "tags": [
+          "foods"
+        ]
+      }
+    },
+    "/recipes": {
+      "get": {
+        "operationId": "RecipesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "My recipes (active)",
+        "tags": [
+          "recipes"
+        ]
+      },
+      "post": {
+        "operationId": "RecipesController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a recipe from structured foods; totals computed server-side",
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
+    "/recipes/{id}": {
+      "get": {
+        "operationId": "RecipesController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "recipes"
+        ]
+      },
+      "patch": {
+        "operationId": "RecipesController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "recipes"
+        ]
+      },
+      "delete": {
+        "operationId": "RecipesController_remove",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
+    "/recipes/{id}/duplicate": {
+      "post": {
+        "operationId": "RecipesController_duplicate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
+    "/recipes/{id}/archive": {
+      "post": {
+        "operationId": "RecipesController_archive",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
+    "/recipes/{id}/restore": {
+      "post": {
+        "operationId": "RecipesController_restore",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
+    "/recipes/{id}/recalc-preview": {
+      "get": {
+        "operationId": "RecipesController_recalcPreview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Preview totals against the current release without saving",
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
+    "/meal-groups": {
+      "get": {
+        "operationId": "MealGroupsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "meal-groups"
+        ]
+      },
+      "post": {
+        "operationId": "MealGroupsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "meal-groups"
+        ]
+      }
+    },
+    "/meal-groups/{id}": {
+      "get": {
+        "operationId": "MealGroupsController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "meal-groups"
+        ]
+      },
+      "patch": {
+        "operationId": "MealGroupsController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "meal-groups"
+        ]
+      },
+      "delete": {
+        "operationId": "MealGroupsController_archive",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "meal-groups"
+        ]
+      }
+    },
+    "/meal-groups/{id}/totals": {
+      "get": {
+        "operationId": "MealGroupsController_totals",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Live nutrition totals for the group (current release)",
+        "tags": [
+          "meal-groups"
+        ]
+      }
+    },
+    "/meal-groups/{id}/duplicate": {
+      "post": {
+        "operationId": "MealGroupsController_duplicate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "meal-groups"
+        ]
+      }
+    },
+    "/meal-groups/{id}/restore": {
+      "post": {
+        "operationId": "MealGroupsController_restore",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "meal-groups"
+        ]
+      }
+    },
+    "/diary/entries": {
+      "post": {
+        "operationId": "DiaryController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Log a food, recipe serving, or whole meal group",
+        "tags": [
+          "diary"
+        ]
+      }
+    },
+    "/diary/entries/{id}": {
+      "patch": {
+        "operationId": "DiaryController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Edit quantity/slot/date/status; snapshots rebuild from the pinned version",
+        "tags": [
+          "diary"
+        ]
+      },
+      "delete": {
+        "operationId": "DiaryController_remove",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "diary"
+        ]
+      }
+    },
+    "/diary/entries/{id}/restore": {
+      "post": {
+        "operationId": "DiaryController_restore",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "diary"
+        ]
+      }
+    },
+    "/diary/copy": {
+      "post": {
+        "operationId": "DiaryController_copy",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Copy a day (or one slot) to another date",
+        "tags": [
+          "diary"
+        ]
+      }
+    },
+    "/diary/day/{date}": {
+      "get": {
+        "operationId": "DiaryController_day",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Entries by slot + totals + target comparison for a date",
+        "tags": [
+          "diary"
+        ]
+      }
+    },
+    "/favorites": {
+      "get": {
+        "operationId": "FavoritesController_favorites",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "favorites"
+        ]
+      },
+      "post": {
+        "operationId": "FavoritesController_add",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "favorites"
+        ]
+      },
+      "delete": {
+        "operationId": "FavoritesController_remove",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "favorites"
+        ]
+      }
+    },
+    "/recents": {
+      "get": {
+        "operationId": "FavoritesController_recentFoods",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Recently logged foods as search cards (fast home-screen path)",
+        "tags": [
+          "favorites"
+        ]
+      }
+    },
+    "/reminders": {
+      "get": {
+        "operationId": "RemindersController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "reminders"
+        ]
+      },
+      "post": {
+        "operationId": "RemindersController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a reminder; next occurrence computed via profile timezone",
+        "tags": [
+          "reminders"
+        ]
+      }
+    },
+    "/reminders/{id}": {
+      "patch": {
+        "operationId": "RemindersController_update",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "reminders"
+        ]
+      },
+      "delete": {
+        "operationId": "RemindersController_remove",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "reminders"
+        ]
+      }
+    },
+    "/reminders/{id}/deliveries": {
+      "get": {
+        "operationId": "RemindersController_deliveries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delivery log for a reminder",
+        "tags": [
+          "reminders"
+        ]
+      }
+    },
+    "/summary/daily/{date}": {
+      "get": {
+        "operationId": "SummaryController_daily",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Daily summary: totals vs target + versioned guidance rules",
+        "tags": [
+          "summary"
+        ]
+      }
+    },
+    "/summary/week/{endDate}": {
+      "get": {
+        "operationId": "SummaryController_week",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Seven-day averages ending at a date",
+        "tags": [
+          "summary"
+        ]
+      }
+    },
+    "/summary/weight-trend": {
+      "get": {
+        "operationId": "SummaryController_weightTrend",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Weight trend vs goal with guidance",
+        "tags": [
+          "summary"
+        ]
+      }
+    },
+    "/home": {
+      "get": {
+        "operationId": "SummaryController_home",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Aggregated mobile home-screen payload",
+        "tags": [
+          "summary"
+        ]
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "operationId": "UsersAdminController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List/search users (cursor-paginated)",
+        "tags": [
+          "admin/users"
+        ]
+      }
+    },
+    "/admin/users/{id}": {
+      "get": {
+        "operationId": "UsersAdminController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/users"
+        ]
+      }
+    },
+    "/admin/users/{id}/roles": {
+      "post": {
+        "operationId": "UsersAdminController_setRoles",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Replace a user's role set (super_admin only)",
+        "tags": [
+          "admin/users"
+        ]
+      }
+    },
+    "/admin/users/{id}/suspend": {
+      "post": {
+        "operationId": "UsersAdminController_suspend",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Suspend an account; revokes every active session immediately",
+        "tags": [
+          "admin/users"
+        ]
+      }
+    },
+    "/admin/users/{id}/reactivate": {
+      "post": {
+        "operationId": "UsersAdminController_reactivate",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/users"
+        ]
+      }
+    },
+    "/admin/users/{id}/delete": {
+      "post": {
+        "operationId": "UsersAdminController_softDelete",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Soft-delete an account (auditable retention, not a hard delete)",
+        "tags": [
+          "admin/users"
+        ]
+      }
+    },
+    "/admin/audit": {
+      "get": {
+        "operationId": "AuditAdminController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Query the append-only audit log (cursor-paginated, newest first)",
+        "tags": [
+          "admin/audit"
+        ]
+      }
+    },
+    "/admin/jobs/summary": {
+      "get": {
+        "operationId": "JobsAdminController_summary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Queue depths across imports/catalog/reminders (BullMQ job counts)",
+        "tags": [
+          "admin/jobs"
+        ]
+      }
+    },
+    "/admin/jobs/failed": {
+      "get": {
+        "operationId": "JobsAdminController_failed",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Recent failed jobs across all monitored queues",
+        "tags": [
+          "admin/jobs"
+        ]
+      }
+    },
+    "/admin/system/overview": {
+      "get": {
+        "operationId": "SystemAdminController_overview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Dashboard landing counts: users, catalog, releases, imports",
+        "tags": [
+          "admin/system"
+        ]
+      }
+    },
+    "/admin/system/media": {
+      "get": {
+        "operationId": "SystemAdminController_media",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Recent media/storage assets and their status",
+        "tags": [
+          "admin/system"
+        ]
+      }
+    },
+    "/admin/calc-policies": {
+      "get": {
+        "operationId": "CalcPoliciesAdminController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "All calculation policy versions",
+        "tags": [
+          "admin/calc-policies"
+        ]
+      },
+      "post": {
+        "operationId": "CalcPoliciesAdminController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new policy version; optionally activate it immediately",
+        "tags": [
+          "admin/calc-policies"
+        ]
+      }
+    },
+    "/me/export": {
+      "get": {
+        "operationId": "AccountController_export",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export everything the platform stores about the caller (PII + activity)",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/me/delete": {
+      "post": {
+        "operationId": "AccountController_selfDelete",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Password-confirmed self-service account deletion (soft delete, revokes all sessions)",
+        "tags": [
+          "account"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Health House API",
+    "description": "Nutrition & calorie platform — public /api/v1 and admin /api/v1/admin",
+    "version": "v1",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {}
+  }
+}

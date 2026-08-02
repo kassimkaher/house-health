@@ -48,7 +48,7 @@ export async function createTestApp(rootModule: Type<unknown>): Promise<TestAppC
     .useValue(email)
     .compile();
   const app = moduleRef.createNestApplication();
-  app.setGlobalPrefix("api/v1", { exclude: ["health/live", "health/ready"] });
+  app.setGlobalPrefix("api/v1", { exclude: ["health/live", "health/ready", "metrics"] });
   app.use(cookieParser());
   await app.init();
   return { app, email };
