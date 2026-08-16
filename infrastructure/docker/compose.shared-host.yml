@@ -1,0 +1,45 @@
+# Overlay for deploying on a SHARED host that already runs its own
+# system-level Nginx + Certbot for other, unrelated live projects on the
+# same box (see docs/runbooks/deploy-shared-host.md). Use this INSTEAD OF
+# compose.prod.yml's assumption of exclusive ownership of host ports
+# 80/443 — compose.base.yml and compose.prod.yml are otherwise unchanged
+# and remain correct for a dedicated Contabo server.
+#
+# What this overlay does:
+#   - Publishes api/admin-web/minio to LOOPBACK-ONLY host ports so the
+#     host's own Nginx (a systemd service, not a container) can reverse
+#     proxy to them. Postgres/Redis stay fully internal — nothing else on
+#     this box needs to reach them.
+#   - Moves this project's own `nginx` and `certbot` services behind a
+#     `standalone-edge` profile so a bare `docker compose ... up -d`
+#     (no explicit service list) can never accidentally try to bind host
+#     80/443 and collide with the shared host Nginx already listening
+#     there for sibling projects.
+#
+# Usage:
+#   docker compose -p hh-prod \
+#     -f compose.base.yml -f compose.prod.yml -f compose.shared-host.yml \
+#     --env-file .env.production \
+#     up -d postgres redis minio api worker admin-web
+# (deliberately omits `nginx`/`certbot` from the service list — see above)
+
+services:
+  api:
+    ports:
+      - "127.0.0.1:3100:3100"
+
+  admin-web:
+    ports:
+      - "127.0.0.1:3002:3002"
+
+  minio:
+    ports:
+      - "127.0.0.1:19000:9000"
+      # Console (19001) intentionally NOT published — no public admin
+      # surface for MinIO itself; reach it via SSH tunnel if ever needed.
+
+  nginx:
+    profiles: ["standalone-edge"]
+
+  certbot:
+    profiles: ["standalone-edge"]

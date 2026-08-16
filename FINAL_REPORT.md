@@ -196,10 +196,14 @@ destructive-migration recovery).
 - No live push/FCM or SMTP provider wired — only the log-based dev
   providers are active. The `PushPort`/`EmailPort` seams and an FCM
   provider skeleton exist; wiring a real provider is a follow-up.
-- The `worker` container has no internet egress in the current network
-  topology (`data` network only) — fine for the log providers, but wiring
-  a real external push/email provider later will need `worker` added to
-  the `edge` network too.
+- ~~The `worker` container has no internet egress~~ — **corrected during
+  the Contabo production deploy**: `worker` is now on both `data` and
+  `edge` (see `compose.base.yml`). This turned out to be required sooner
+  than expected — the import pipeline's worker-side `ImportRunner` fetches
+  uploaded files via the same public `S3_ENDPOINT` used for presigned
+  URLs, so a `data`-only worker couldn't resolve it and every import job
+  failed at the object-fetch step. Caught and fixed during the first real
+  production deploy, not a hypothetical.
 - OpenTelemetry tracing is wired behind `OTEL_ENABLED` but dormant by
   default (no exporter configured) — the seam is proven, not the export
   path.

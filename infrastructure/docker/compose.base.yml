@@ -138,7 +138,15 @@ services:
       dockerfile: infrastructure/docker/worker.Dockerfile
     image: health-house/worker:${IMAGE_TAG:-latest}
     environment: *app-env
-    networks: [data]
+    # `edge`, not `data`-only: S3_ENDPOINT is the PUBLIC s3.<domain>
+    # hostname (see the comment on S3_ENDPOINT above — presigned URLs need
+    # it), and the import pipeline's worker-side ImportRunner fetches
+    # uploaded files via that same single S3Client/endpoint (there's no
+    # separate internal-only object-storage config). A data-only worker
+    # can resolve neither the public DNS name nor route to it, so every
+    # import job fails at the object-fetch step with getaddrinfo ENOTFOUND
+    # — proven during the Contabo production deploy, not a hypothetical.
+    networks: [data, edge]
     depends_on:
       postgres:
         condition: service_healthy

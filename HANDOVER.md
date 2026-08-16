@@ -122,6 +122,27 @@ suite — listed here so a future refactor doesn't reintroduce them silently:
   than your load-test/production concurrency.** Manifests as a fat p99
   tail on an otherwise-fast endpoint, easy to misdiagnose as an app bug.
   See `docs/performance.md`'s methodology section.
+- **BullMQ rejects custom job ids containing a single `:`** (it reserves
+  colons for its own legacy repeatable-job id format — a job id must
+  either have zero colons or split into exactly 3 parts). Three of the
+  four deterministic job-id helpers in `packages/pipeline/src/queues.ts`
+  used a single colon and threw `Custom Id cannot contain :` the moment a
+  real BullMQ+Redis instance processed them; the fourth
+  (`reminderDispatch`) only happened to survive because it has exactly two
+  colons. No integration test caught this because none of them exercise
+  the real HTTP import endpoint's `queue.add()` call — the pipeline test
+  suite calls `ImportRunner`/`ReleaseService` directly. Fixed by switching
+  every job-id helper to `.`-delimiters; found and fixed during the first
+  real production deploy.
+- **`worker` needs `edge` network access, not just `data`.** It was
+  originally `data`-only (reasoned as "fine, it only needs Postgres/Redis/
+  MinIO"), but `S3_ENDPOINT` is deliberately the *public* `s3.<domain>`
+  hostname (so presigned URLs work for real clients) — and the import
+  pipeline's worker-side file fetch uses that same single S3 client/
+  endpoint. A `data`-only worker can't resolve or route to it, so every
+  import job failed with `getaddrinfo ENOTFOUND`. Fixed in
+  `compose.base.yml` (worker is now `[data, edge]`) during the first
+  production deploy — this benefits every deployment, not just this one.
 
 ## What's not done (and suggested order to pick it up)
 
@@ -130,9 +151,10 @@ team continuing this work:
 
 1. **Wire a real email + push provider.** The `EmailPort`/`PushPort` seams
    and log-based dev providers are in place and tested against; swapping
-   in real SMTP/FCM is bounded work. Note `worker` currently has no
-   internet egress (`data` network only) — add it to `edge` when this
-   lands.
+   in real SMTP/FCM is bounded work. `worker` already has internet egress
+   (`edge` network — added during the first production deploy, since the
+   import pipeline needed it too; see the gotchas list below), so no
+   network change is needed for this one.
 2. **Bulk dataset import** (USDA FoodData Central / Open Food Facts). The
    import pipeline is built and tested against fixture files; this is
    "run it against a real source," not new engineering.
