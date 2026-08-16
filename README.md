@@ -105,3 +105,4 @@ scripts/            CI, backup/restore, deployment scripts
 - `docs/security-privacy.md` — security posture, PII inventory
 - `docs/backup-restore.md`, `docs/runbooks/` — operations
 - `docs/mobile-integration.md` — guide for a future mobile client
+# house-health
