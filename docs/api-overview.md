@@ -1,8 +1,9 @@
 # API Documentation
 
-Live, generated OpenAPI/Swagger UI is available at `GET /api/docs` in any
-non-production environment (`apps/api/src/main.ts`). This file is the
-narrative index; the Swagger UI is the authoritative field-by-field
+Live, generated OpenAPI/Swagger UI is available at `GET /docs` — on by
+default outside production, or in production too if `SWAGGER_ENABLED=true`
+is set (`apps/api/src/main.ts`). This file is the narrative index; the
+Swagger UI is the authoritative field-by-field
 reference, and `docs/openapi.json` (generated in Phase 13/CI) is the
 machine-readable artifact.
 

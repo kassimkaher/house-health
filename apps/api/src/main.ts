@@ -33,7 +33,12 @@ async function bootstrap(): Promise<void> {
   });
   app.enableShutdownHooks();
 
-  if (config.nodeEnv !== "production") {
+  // SWAGGER_ENABLED unset = auto (on outside production, off in
+  // production) — the original behavior. Explicitly set so enabling docs
+  // never implicitly changes NODE_ENV-gated behavior elsewhere (the
+  // throttler, ephemeral-JWT-keypair fallback, etc).
+  const swaggerOn = config.swaggerEnabled ?? config.nodeEnv !== "production";
+  if (swaggerOn) {
     const swaggerConfig = new DocumentBuilder()
       .setTitle("Health House API")
       .setDescription("Nutrition & calorie platform — public /api/v1")
@@ -41,7 +46,7 @@ async function bootstrap(): Promise<void> {
       .addBearerAuth()
       .build();
     const document = SwaggerModule.createDocument(app, swaggerConfig);
-    SwaggerModule.setup("api/docs", app, document);
+    SwaggerModule.setup("docs", app, document);
   }
 
   await app.listen(config.apiPort);

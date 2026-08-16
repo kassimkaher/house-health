@@ -48,8 +48,9 @@ pnpm --filter @hh/worker dev
 pnpm --filter @hh/admin-web dev
 ```
 
-API docs: `http://localhost:3100/api/docs` (Swagger UI, non-production
-only). Health check: `http://localhost:3100/health/live`.
+API docs: `http://localhost:3100/docs` (Swagger UI — on by default outside
+production; set `SWAGGER_ENABLED=true` to also enable it in production).
+Health check: `http://localhost:3100/health/live`.
 
 Dev seed accounts (see `packages/database/prisma/seed.ts`,
 `SEED_DEV_ACCOUNTS=1`): `dev-superadmin@local.test`,

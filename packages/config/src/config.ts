@@ -38,6 +38,14 @@ const envSchema = z.object({
   OTEL_ENABLED: z.coerce.boolean().default(false),
   OTEL_EXPORTER_OTLP_ENDPOINT: optionalString(z.string().url()),
   ERROR_TRACKING_DSN: optionalString(z.string().min(1)),
+  /**
+   * Unset (default) = auto: on outside production, off in production —
+   * the original behavior. Explicitly set to opt production Swagger UI
+   * in or out without changing NODE_ENV (which also gates the throttler
+   * and other production-only behavior — this flag is independent of
+   * that so enabling docs never accidentally loosens anything else).
+   */
+  SWAGGER_ENABLED: optionalString(z.enum(["true", "false"])),
 });
 
 export interface GoogleOidcConfig {
@@ -69,6 +77,8 @@ export interface AppConfig {
   otelEnabled: boolean;
   otelExporterOtlpEndpoint: string | null;
   errorTrackingDsn: string | null;
+  /** null = auto (on outside production, off in production). */
+  swaggerEnabled: boolean | null;
 }
 
 /** Thrown when environment validation fails; message lists every bad field. */
@@ -174,5 +184,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     otelEnabled: e.OTEL_ENABLED,
     otelExporterOtlpEndpoint: e.OTEL_EXPORTER_OTLP_ENDPOINT ?? null,
     errorTrackingDsn: e.ERROR_TRACKING_DSN ?? null,
+    swaggerEnabled: e.SWAGGER_ENABLED === undefined ? null : e.SWAGGER_ENABLED === "true",
   };
 }

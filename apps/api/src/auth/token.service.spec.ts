@@ -29,6 +29,7 @@ const config: AppConfig = {
   otelEnabled: false,
   otelExporterOtlpEndpoint: null,
   errorTrackingDsn: null,
+  swaggerEnabled: null,
 };
 
 interface MockPrisma {
